@@ -1,0 +1,17 @@
+[package]
+name = "password-manager-rust"
+version = "0.1.0"
+authors = ["Robert Bartlensky <bartlensky.robert@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+clap = "2.33.0"
+keyring = "0.7.1"
+toml = "0.5.3"
+nitrokey = { path = "./nitrokey-rs/" }
+rpassword = "4.0"
+home = "0.5.0"
+clipboard = "0.5.0"
+passwords = "1.1.5"

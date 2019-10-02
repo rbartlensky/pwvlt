@@ -1,0 +1,4 @@
+nitrokey-rs
+/target
+**/*.rs.bk
+*\~
