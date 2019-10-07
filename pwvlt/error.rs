@@ -5,7 +5,7 @@ use std::fmt;
 use nitrokey::CommandError;
 
 #[derive(Debug)]
-pub enum PasswordStoreError {
+pub enum PassStoreError {
     NoDefaultUser(String),
     PasswordNotFound,
     KeyringError(KeyringError),
@@ -16,31 +16,31 @@ pub enum PasswordStoreError {
     PasswordGenerationError(String),
 }
 
-impl fmt::Display for PasswordStoreError {
+impl fmt::Display for PassStoreError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let message = match self {
-            PasswordStoreError::NoDefaultUser(service) => {
+            PassStoreError::NoDefaultUser(service) => {
                 format!("No default username set for {}", service)
             },
-            PasswordStoreError::PasswordNotFound => {
+            PassStoreError::PasswordNotFound => {
                 "Password not found.".to_string()
             },
-            PasswordStoreError::KeyringError(err) => {
+            PassStoreError::KeyringError(err) => {
                 format!("Keyring error: {}", err)
             },
-            PasswordStoreError::IoError(err) => {
+            PassStoreError::IoError(err) => {
                 format!("I/O error: {}", err)
             },
-            PasswordStoreError::GeneralError(err) => {
+            PassStoreError::GeneralError(err) => {
                 format!("Error: {}", err)
             },
-            PasswordStoreError::NitrokeyError(err) => {
+            PassStoreError::NitrokeyError(err) => {
                 format!("Nitrokey error: {}", err)
             },
-            PasswordStoreError::SkipError => {
+            PassStoreError::SkipError => {
                 "Skip error".to_string()
             },
-            PasswordStoreError::PasswordGenerationError(err) => {
+            PassStoreError::PasswordGenerationError(err) => {
                 format!("Error generating password: {}", err)
             }
         };
@@ -48,25 +48,25 @@ impl fmt::Display for PasswordStoreError {
     }
 }
 
-impl From<KeyringError> for PasswordStoreError {
+impl From<KeyringError> for PassStoreError {
     fn from(err: KeyringError) -> Self {
         Self::KeyringError(err)
     }
 }
 
-impl From<IoError> for PasswordStoreError {
+impl From<IoError> for PassStoreError {
     fn from(err: IoError) -> Self {
         Self::IoError(err)
     }
 }
 
-impl From<Box<dyn Error>> for PasswordStoreError {
+impl From<Box<dyn Error>> for PassStoreError {
     fn from(err: Box<dyn Error>) -> Self {
         Self::GeneralError(err)
     }
 }
 
-impl From<CommandError> for PasswordStoreError {
+impl From<CommandError> for PassStoreError {
     fn from(err: CommandError) -> Self {
         Self::NitrokeyError(err)
     }

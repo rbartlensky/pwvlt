@@ -1,24 +1,11 @@
 use crate::config::{parse_config, write_toml};
-use crate::error::PasswordStoreError;
+use crate::error::PassStoreError;
+use crate::util::random_password;
 use clap::Values;
 use keyring::Keyring;
-use passwords::PasswordGenerator;
 use toml::Value;
 
-fn random_password() -> Result<String, PasswordStoreError> {
-    let pg = PasswordGenerator {
-        length: 22,
-        numbers: true,
-        lowercase_letters: true,
-        uppercase_letters: true,
-        symbols: true,
-        strict: true,
-    };
-    pg.generate_one()
-        .map_err(|e| PasswordStoreError::PasswordGenerationError(e.into()))
-}
-
-pub fn handle_set(mut values: Values) -> Result<(), PasswordStoreError> {
+pub fn handle_set(mut values: Values) -> Result<(), PassStoreError> {
     let service = values.next().unwrap();
     let username = values.next().unwrap();
     let password = match values.next() {

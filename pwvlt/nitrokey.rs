@@ -1,11 +1,11 @@
-use crate::error::PasswordStoreError;
+use crate::error::PassStoreError;
 use nitrokey::{connect, CommandError, Device, GetPasswordSafe, SLOT_COUNT};
 use rpassword::prompt_password_stdout;
 
 pub fn get_password_from_nitrokey(
     service: &str,
     username: &str,
-) -> Result<String, PasswordStoreError> {
+) -> Result<String, PassStoreError> {
     let device = connect()?;
     let user_count = device.get_user_retry_count();
     if user_count < 1 {
@@ -13,7 +13,7 @@ pub fn get_password_from_nitrokey(
             "Nitrokey must be unlocked with admin pin!
 Please use the nitrokey app to reset the user pin!"
         );
-        return Err(PasswordStoreError::SkipError);
+        return Err(PassStoreError::SkipError);
     };
     let pin = prompt_password_stdout(&format!("Nitrokey user pin ({} tries left):", user_count))?;
     let password_safe = device.get_password_safe(&pin)?;
@@ -23,17 +23,17 @@ Please use the nitrokey app to reset the user pin!"
         {
             return password_safe
                 .get_slot_password(slot)
-                .map_err(PasswordStoreError::from);
+                .map_err(PassStoreError::from);
         }
     }
-    Err(PasswordStoreError::PasswordNotFound)
+    Err(PassStoreError::PasswordNotFound)
 }
 
-pub fn handle_nitrokey_error(err: PasswordStoreError) {
+pub fn handle_nitrokey_error(err: PassStoreError) {
     let message = match err {
-        PasswordStoreError::PasswordNotFound => "Password not found on the Nitrokey!".into(),
-        PasswordStoreError::SkipError => "Skipping Nitrokey search...".into(),
-        PasswordStoreError::NitrokeyError(nke) => match nke {
+        PassStoreError::PasswordNotFound => "Password not found on the Nitrokey!".into(),
+        PassStoreError::SkipError => "Skipping Nitrokey search...".into(),
+        PassStoreError::NitrokeyError(nke) => match nke {
             CommandError::Undefined => {
                 "Couldn't connect to the Nitrokey! Skipping Nitrokey search...".into()
             }

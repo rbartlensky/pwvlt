@@ -1,15 +1,8 @@
-mod error;
-mod get;
-mod set;
-mod config;
-mod nitrokey;
-
-use get::handle_get;
-use set::handle_set;
+use pwvlt::{get::handle_get, set::handle_set};
 use clap::{App, Arg, ArgGroup};
 
 fn main() {
-    let matches = App::new("LocalNitro password store")
+    let matches = App::new("Password Vault")
         .version("1.0")
         .author("Robert B. <bartlensky.robert@gmail.com>")
         .about("Stores passwords on the local keyring or on a Nitrokey.")

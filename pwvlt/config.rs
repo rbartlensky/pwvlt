@@ -1,4 +1,4 @@
-use crate::error::PasswordStoreError;
+use crate::error::PassStoreError;
 use home::home_dir;
 use std::fs::{read_to_string, write, DirBuilder, File};
 use std::path::PathBuf;
@@ -13,7 +13,7 @@ pub fn config_path() -> PathBuf {
         .join("password-store-rust")
 }
 
-pub fn parse_config() -> Result<Map<String, Value>, PasswordStoreError> {
+pub fn parse_config() -> Result<Map<String, Value>, PassStoreError> {
     let config_path = config_path();
     DirBuilder::new().recursive(true).create(&config_path)?;
     let defaults_file = config_path.join(CONFIG_TOML);
@@ -31,10 +31,10 @@ pub fn parse_config() -> Result<Map<String, Value>, PasswordStoreError> {
         .unwrap_or_else(Map::new))
 }
 
-pub fn write_toml(toml: Map<String, Value>) -> Result<(), PasswordStoreError> {
+pub fn write_toml(toml: Map<String, Value>) -> Result<(), PassStoreError> {
     write(
         config_path().join(CONFIG_TOML),
         format!("{}", Value::Table(toml)),
     )
-    .map_err(PasswordStoreError::from)
+    .map_err(PassStoreError::from)
 }
