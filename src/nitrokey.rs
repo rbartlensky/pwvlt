@@ -2,9 +2,9 @@ use crate::error::PasswordStoreError;
 use nitrokey::{connect, CommandError, Device, GetPasswordSafe, SLOT_COUNT};
 use rpassword::prompt_password_stdout;
 
-pub fn get_password_from_nitrokey<'a>(
-    service: &'a str,
-    username: &'a str,
+pub fn get_password_from_nitrokey(
+    service: &str,
+    username: &str,
 ) -> Result<String, PasswordStoreError> {
     let device = connect()?;
     let user_count = device.get_user_retry_count();
@@ -23,7 +23,7 @@ Please use the nitrokey app to reset the user pin!"
         {
             return password_safe
                 .get_slot_password(slot)
-                .map_err(|e| PasswordStoreError::from(e));
+                .map_err(PasswordStoreError::from);
         }
     }
     Err(PasswordStoreError::PasswordNotFound)

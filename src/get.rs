@@ -11,9 +11,7 @@ fn default_username(service: &str) -> Result<String, PasswordStoreError> {
     let toml = parse_config()?;
     match toml.get(service) {
         Some(username) => Ok(username.as_str().unwrap().into()),
-        None => Err(PasswordStoreError::NoDefaultUser(
-            format!("No default username set for {}", service).into(),
-        )),
+        None => Err(PasswordStoreError::NoDefaultUser(service.into())),
     }
 }
 

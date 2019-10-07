@@ -4,7 +4,7 @@ use std::fs::{read_to_string, write, DirBuilder, File};
 use std::path::PathBuf;
 use toml::{map::Map, Value};
 
-const CONFIG_TOML: &'static str = "config.toml";
+const CONFIG_TOML: &str = "config.toml";
 
 pub fn config_path() -> PathBuf {
     home_dir()
@@ -28,7 +28,7 @@ pub fn parse_config() -> Result<Map<String, Value>, PasswordStoreError> {
             Value::Table(table) => Some(table),
             _ => None,
         })
-        .unwrap_or(Map::new()))
+        .unwrap_or_else(Map::new))
 }
 
 pub fn write_toml(toml: Map<String, Value>) -> Result<(), PasswordStoreError> {
@@ -36,5 +36,5 @@ pub fn write_toml(toml: Map<String, Value>) -> Result<(), PasswordStoreError> {
         config_path().join(CONFIG_TOML),
         format!("{}", Value::Table(toml)),
     )
-    .map_err(|e| PasswordStoreError::from(e))
+    .map_err(PasswordStoreError::from)
 }

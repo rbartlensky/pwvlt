@@ -1,11 +1,12 @@
-use clap::*;
 mod error;
 mod get;
-use get::handle_get;
 mod set;
-use set::handle_set;
 mod config;
 mod nitrokey;
+
+use get::handle_get;
+use set::handle_set;
+use clap::{App, Arg, ArgGroup};
 
 fn main() {
     let matches = App::new("LocalNitro password store")
@@ -30,9 +31,16 @@ fn main() {
                 .min_values(2)
                 .max_values(3),
         )
+        .group(
+            ArgGroup::with_name("cmd")
+                .required(true)
+                .args(&["set", "get"]),
+        )
         .get_matches();
     if let Some(values) = matches.values_of("get") {
-        handle_get(values).unwrap();
+        if let Err(err) = handle_get(values) {
+            eprintln!("Failed to retrieve password: {}", err);
+        }
     }
     if let Some(values) = matches.values_of("set") {
         handle_set(values).unwrap();
