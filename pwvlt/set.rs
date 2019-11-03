@@ -1,22 +1,23 @@
-use crate::config::{parse_config, write_toml};
 use crate::error::PassStoreError;
+use crate::keyring_store::KeyringStore;
+use crate::pass_store::PassStore;
 use crate::util::random_password;
-use clap::Values;
-use keyring::Keyring;
-use toml::Value;
 
-pub fn handle_set(mut values: Values) -> Result<(), PassStoreError> {
-    let service = values.next().unwrap();
-    let username = values.next().unwrap();
-    let password = match values.next() {
-        Some(password) => password.into(),
-        None => random_password()?,
+use rpassword::prompt_password_stdout;
+
+// XXX This only ever updates the keyring.
+pub fn set_password(service: &str, username: &str) -> Result<(), PassStoreError> {
+    let keyring_store = KeyringStore::new();
+    let message = &format!(
+        "New password for user {} (empty for randomly generated password):",
+        username
+    );
+    let password = prompt_password_stdout(message)?;
+    let password = if password.is_empty() {
+        random_password()?
+    } else {
+        password
     };
-    let keyring = Keyring::new(service, username);
-    keyring.set_password(&password)?;
-    let mut toml = parse_config()?;
-    if toml.get(service).is_none() {
-        toml.insert(service.into(), Value::String(username.into()));
-    }
-    write_toml(toml)
+    keyring_store.set_password(service, username, &password)?;
+    Ok(())
 }

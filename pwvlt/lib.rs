@@ -1,6 +1,7 @@
-pub mod config;
 pub mod error;
 pub mod get;
-pub mod nitrokey;
+pub mod keyring_store;
+pub mod nitrokey_store;
+pub mod pass_store;
 pub mod set;
 pub mod util;
