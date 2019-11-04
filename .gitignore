@@ -1,4 +1,4 @@
 nitrokey-rs
-/target
+**/target
 **/*.rs.bk
 *\~

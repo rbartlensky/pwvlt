@@ -1,0 +1,9 @@
+[package]
+name = "pwvlt-cli"
+version = "0.1.0"
+authors = ["Robert Bartlensky <bartlensky.robert@gmail.com>", "Gabriela Moldovan <gabi_250@live.com>"]
+edition = "2018"
+
+[dependencies]
+clap = "2.33.0"
+pwvlt = { path = "../pwvlt/" }
