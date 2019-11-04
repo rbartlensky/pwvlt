@@ -1,0 +1,14 @@
+[package]
+name = "pwvlt"
+version = "0.1.0"
+authors = ["Robert Bartlensky <bartlensky.robert@gmail.com>", "Gabriela Moldovan <gabi_250@live.com>"]
+edition = "2018"
+
+[dependencies]
+keyring = "0.7.1"
+toml = "0.5.3"
+nitrokey = { path = "../nitrokey-rs/" }
+rpassword = "4.0"
+home = "0.5.0"
+clipboard = "0.5.0"
+passwords = "1.1.5"
