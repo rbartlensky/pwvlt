@@ -1,4 +1,4 @@
-# Password-store
+# Password Vault
 
 To build the project:
  * first run `./apply-patch-nitrokey-rs.sh` in order to download `nitrokey-rs`
