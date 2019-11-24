@@ -9,4 +9,6 @@ pub trait PassStore {
         username: &str,
         password: &str,
     ) -> Result<(), PassStoreError>;
+
+    fn handle_error(&self, err: PassStoreError);
 }

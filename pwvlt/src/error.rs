@@ -56,24 +56,3 @@ impl From<CommandError> for PassStoreError {
         Self::NitrokeyError(err)
     }
 }
-
-pub fn handle_nitrokey_error(err: PassStoreError) {
-    let message = match err {
-        PassStoreError::PasswordNotFound => "Password not found on the Nitrokey!".into(),
-        PassStoreError::SkipError => "Skipping Nitrokey search...".into(),
-        PassStoreError::NitrokeyError(nke) => match nke {
-            CommandError::Undefined => {
-                "Couldn't connect to the Nitrokey! Skipping Nitrokey search...".into()
-            }
-            CommandError::WrongPassword => {
-                "User pin was incorrect. Skipping Nitrokey search...".into()
-            }
-            err => format!("Nitrokey error: {}", err),
-        },
-        err => unreachable!(
-            "Call to get_password_from_nitrokey shouldn't generate a {:?} error",
-            err
-        ),
-    };
-    println!("{}", message);
-}

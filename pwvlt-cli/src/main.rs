@@ -1,5 +1,13 @@
 use clap::{App, Arg, ArgGroup};
-use pwvlt::{get::get_password, set::set_password};
+use clipboard::{ClipboardContext, ClipboardProvider};
+
+use std::io::{stdout, Write};
+use std::thread::sleep;
+use std::time::Duration;
+
+use pwvlt::{set::set_password, vault::PasswordVault};
+
+const DEFAULT_TIMEOUT: u8 = 7;
 
 fn main() {
     let matches = App::new("Password Vault")
@@ -30,11 +38,28 @@ fn main() {
                 .args(&["set", "get"]),
         )
         .get_matches();
+    let pv = PasswordVault::new();
     if let Some(mut values) = matches.values_of("get") {
         let service = values.next().unwrap();
         let username = values.next().unwrap();
-        if let Err(err) = get_password(&service, &username) {
-            eprintln!("Failed to retrieve password: {}", err);
+        match pv.password(&service, &username) {
+            Ok(password) => {
+                let mut ctx: ClipboardContext =
+                    ClipboardProvider::new().expect("Cannot initialize clipboard!");
+                ctx.set_contents(password)
+                    .expect("Cannot copy password to clipboard!");
+                for i in (0..DEFAULT_TIMEOUT).rev() {
+                    print!("Password copied to clipboard. ({}s)\r", i);
+                    stdout().flush().unwrap();
+                    sleep(Duration::from_secs(1));
+                }
+                println!("");
+                ctx.set_contents(String::new())
+                    .expect("Cannot clear clipboard!");
+            }
+            Err(err) => {
+                eprintln!("Failed to retrieve password: {}", err);
+            }
         }
     }
     if let Some(mut values) = matches.values_of("set") {

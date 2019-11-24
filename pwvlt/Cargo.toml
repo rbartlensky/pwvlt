@@ -10,5 +10,4 @@ toml = "0.5.3"
 nitrokey = { path = "../nitrokey-rs/" }
 rpassword = "4.0"
 home = "0.5.0"
-clipboard = "0.5.0"
 passwords = "1.1.5"

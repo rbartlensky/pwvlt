@@ -1,7 +1,7 @@
 use crate::error::PassStoreError;
 use crate::pass_store::PassStore;
 
-use nitrokey::{connect, Device, DeviceWrapper, GetPasswordSafe, SLOT_COUNT};
+use nitrokey::{connect, CommandError, Device, DeviceWrapper, GetPasswordSafe, SLOT_COUNT};
 use rpassword::prompt_password_stdout;
 
 pub struct NitrokeyStore {
@@ -45,5 +45,22 @@ impl PassStore for NitrokeyStore {
         _password: &str,
     ) -> Result<(), PassStoreError> {
         unimplemented!("NitrokeyStore.set_password");
+    }
+
+    fn handle_error(&self, err: PassStoreError) {
+        let message = match err {
+            PassStoreError::PasswordNotFound => "Password not found on Nitrokey!".into(),
+            PassStoreError::SkipError => "Skipping Nitrokey search...".into(),
+            PassStoreError::NitrokeyError(nke) => match nke {
+                CommandError::Undefined => "Couldn't connect to the Nitrokey!".into(),
+                CommandError::WrongPassword => "User pin was incorrect.".into(),
+                err => format!("Nitrokey error: {}", err),
+            },
+            err => unreachable!(
+                "A NitrokeyKeyStore shouldn't generate a {} error.",
+                err
+            ),
+        };
+        println!("{}", message);
     }
 }
