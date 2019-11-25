@@ -3,6 +3,7 @@ use crate::pass_store::PassStore;
 
 use keyring::Keyring;
 
+#[derive(Default)]
 pub struct KeyringStore {}
 
 impl KeyringStore {
@@ -31,8 +32,12 @@ impl PassStore for KeyringStore {
     fn handle_error(&self, err: PassStoreError) {
         let msg = match err {
             PassStoreError::KeyringError(err) => format!("{}", err),
-            _ => unreachable!("A KeyringStore shouldn't generate a {} error.", err)
+            _ => unreachable!("A KeyringStore shouldn't generate a {} error.", err),
         };
         println!("{}", msg);
+    }
+
+    fn name(&self) -> &'static str {
+        "Keyring"
     }
 }

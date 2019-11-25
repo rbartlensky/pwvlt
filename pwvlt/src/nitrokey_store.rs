@@ -1,8 +1,13 @@
 use crate::error::PassStoreError;
 use crate::pass_store::PassStore;
 
-use nitrokey::{connect, CommandError, Device, DeviceWrapper, GetPasswordSafe, SLOT_COUNT};
+use nitrokey::{
+    connect, CommandError, Device, DeviceWrapper, GetPasswordSafe, PasswordSafe, SLOT_COUNT,
+};
+use prettytable::{cell, row, Table};
 use rpassword::prompt_password_stdout;
+
+use std::io::{stdout, Write};
 
 pub struct NitrokeyStore {
     device: DeviceWrapper,
@@ -13,10 +18,8 @@ impl NitrokeyStore {
         let device = connect()?;
         Ok(NitrokeyStore { device })
     }
-}
 
-impl PassStore for NitrokeyStore {
-    fn password(&self, service: &str, username: &str) -> Result<String, PassStoreError> {
+    pub fn unlock_safe(&self) -> Result<PasswordSafe, PassStoreError> {
         let user_count = self.device.get_user_retry_count();
         if user_count < 1 {
             println!("Nitrokey must be unlocked using the admin pin!");
@@ -25,7 +28,37 @@ impl PassStore for NitrokeyStore {
         };
         let pin =
             prompt_password_stdout(&format!("Nitrokey user pin ({} tries left):", user_count))?;
-        let password_safe = self.device.get_password_safe(&pin)?;
+        self.device
+            .get_password_safe(&pin)
+            .map_err(PassStoreError::from)
+    }
+
+    fn print_slots(&self, pws: &PasswordSafe) -> Result<(), PassStoreError> {
+        print!("Retrieving the Nitrokey slots...\r");
+        stdout().flush().unwrap();
+        let mut table = Table::new();
+        table.add_row(row!["Slot", "Service", "Username"]);
+        pws.get_slot_status()?
+            .iter()
+            .enumerate()
+            .for_each(|(slot, programmed)| {
+                let (name, login) = if *programmed {
+                    let name = pws.get_slot_name(slot as u8).unwrap_or_else(|_| "".into());
+                    let login = pws.get_slot_login(slot as u8).unwrap_or_else(|_| "".into());
+                    (name, login)
+                } else {
+                    ("".into(), "".into())
+                };
+                table.add_row(row![slot.to_string(), name, login]);
+            });
+        table.printstd();
+        Ok(())
+    }
+}
+
+impl PassStore for NitrokeyStore {
+    fn password(&self, service: &str, username: &str) -> Result<String, PassStoreError> {
+        let password_safe = self.unlock_safe()?;
         for slot in 0..SLOT_COUNT {
             if password_safe.get_slot_name(slot)? == service
                 && password_safe.get_slot_login(slot)? == username
@@ -40,11 +73,13 @@ impl PassStore for NitrokeyStore {
 
     fn set_password(
         &self,
-        _service: &str,
-        _username: &str,
-        _password: &str,
+        service: &str,
+        username: &str,
+        password: &str,
     ) -> Result<(), PassStoreError> {
-        unimplemented!("NitrokeyStore.set_password");
+        let password_safe = self.unlock_safe()?;
+        self.print_slots(&password_safe)?;
+        Ok(())
     }
 
     fn handle_error(&self, err: PassStoreError) {
@@ -56,11 +91,12 @@ impl PassStore for NitrokeyStore {
                 CommandError::WrongPassword => "User pin was incorrect.".into(),
                 err => format!("Nitrokey error: {}", err),
             },
-            err => unreachable!(
-                "A NitrokeyKeyStore shouldn't generate a {} error.",
-                err
-            ),
+            err => unreachable!("A NitrokeyKeyStore shouldn't generate a {} error.", err),
         };
         println!("{}", message);
+    }
+
+    fn name(&self) -> &'static str {
+        "Nitrokey"
     }
 }
