@@ -1,5 +1,6 @@
 use crate::error::PassStoreError;
 use crate::pass_store::PassStore;
+use crate::util::looping_prompt;
 
 use nitrokey::{
     connect, CommandError, Device, DeviceWrapper, GetPasswordSafe, PasswordSafe, SLOT_COUNT,
@@ -79,6 +80,8 @@ impl PassStore for NitrokeyStore {
     ) -> Result<(), PassStoreError> {
         let password_safe = self.unlock_safe()?;
         self.print_slots(&password_safe)?;
+        let slot = looping_prompt("slot", SLOT_COUNT - 1);
+        password_safe.write_slot(slot, service, username, password)?;
         Ok(())
     }
 

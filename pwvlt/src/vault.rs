@@ -2,12 +2,10 @@ use crate::error::PassStoreError;
 use crate::keyring_store::KeyringStore;
 use crate::nitrokey_store::NitrokeyStore;
 use crate::pass_store::PassStore;
-use crate::util::random_password;
+use crate::util::{looping_prompt, random_password};
 
 use prettytable::{cell, row, Table};
 use rpassword::prompt_password_stdout;
-
-use std::io::{self, stdout, BufRead, Write};
 
 #[derive(Default)]
 pub struct PasswordVault {
@@ -21,9 +19,7 @@ impl PasswordVault {
             stores.push(Box::new(nk));
         }
         stores.push(Box::new(KeyringStore::new()));
-        PasswordVault {
-            stores,
-        }
+        PasswordVault { stores }
     }
 
     pub fn password(&self, service: &str, username: &str) -> Result<String, PassStoreError> {
@@ -61,21 +57,6 @@ impl PasswordVault {
             table.add_row(row!(i.to_string(), store.name()));
         }
         table.printstd();
-        loop {
-            print!("Select a backend (0-{}): ", self.stores.len() - 1);
-            stdout().flush().unwrap();
-            let mut backend = String::new();
-            let stdin = io::stdin();
-            stdin.lock().read_line(&mut backend).unwrap();
-            let backend = backend.trim();
-            if let Ok(backend) = backend.parse::<usize>() {
-                if backend < self.stores.len() {
-                    return backend;
-                }
-                println!("Invalid backend number: {}", backend);
-            } else {
-                println!("Invalid backend: {}", backend);
-            }
-        }
+        looping_prompt("backend", self.stores.len() - 1)
     }
 }

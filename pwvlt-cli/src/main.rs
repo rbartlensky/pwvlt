@@ -65,6 +65,7 @@ fn main() {
     if let Some(mut values) = matches.values_of("set") {
         let service = values.next().unwrap();
         let username = values.next().unwrap();
-        pv.set_password(&service, &username).expect("Failed to set password");
+        pv.set_password(&service, &username)
+            .expect("Failed to set password");
     }
 }
