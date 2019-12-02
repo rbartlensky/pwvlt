@@ -1,4 +1,4 @@
-use std::fs::{create_dir_all, File, read_to_string};
+use std::fs::{create_dir_all, read_to_string, File};
 use std::io::Write;
 
 use pwvlt::Config;

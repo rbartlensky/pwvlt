@@ -1,5 +1,5 @@
-use crate::error::PassStoreError;
 use crate::config;
+use crate::error::PassStoreError;
 
 use passwords::PasswordGenerator;
 

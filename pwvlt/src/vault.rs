@@ -17,10 +17,18 @@ pub struct PasswordVault {
 impl PasswordVault {
     pub fn new(config: Config) -> PasswordVault {
         let mut stores: Vec<Box<dyn PassStore>> = Vec::with_capacity(2);
-        if let Ok(nk) = NitrokeyStore::new() {
-            stores.push(Box::new(nk));
+        for backend in &config.general.backends {
+            match backend.as_str() {
+                "nitrokey" => {
+                    match NitrokeyStore::new() {
+                        Ok(nk) => stores.push(Box::new(nk)),
+                        Err(e) => println!("Failed to access Nitrokey: {}", e),
+                    }
+                }
+                "keyring" => stores.push(Box::new(KeyringStore::new())),
+                b => println!("Skipping unknown backend '{}'", b),
+            }
         }
-        stores.push(Box::new(KeyringStore::new()));
         PasswordVault { stores, config }
     }
 
