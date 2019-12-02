@@ -11,4 +11,6 @@ pub trait PassStore {
     ) -> Result<(), PassStoreError>;
 
     fn handle_error(&self, err: PassStoreError);
+
+    fn name(&self) -> &'static str;
 }

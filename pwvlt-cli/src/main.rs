@@ -5,7 +5,7 @@ use std::io::{stdout, Write};
 use std::thread::sleep;
 use std::time::Duration;
 
-use pwvlt::{set::set_password, vault::PasswordVault};
+use pwvlt::vault::PasswordVault;
 
 const DEFAULT_TIMEOUT: u8 = 7;
 
@@ -53,7 +53,7 @@ fn main() {
                     stdout().flush().unwrap();
                     sleep(Duration::from_secs(1));
                 }
-                println!("");
+                println!();
                 ctx.set_contents(String::new())
                     .expect("Cannot clear clipboard!");
             }
@@ -65,6 +65,7 @@ fn main() {
     if let Some(mut values) = matches.values_of("set") {
         let service = values.next().unwrap();
         let username = values.next().unwrap();
-        set_password(service, username).unwrap();
+        pv.set_password(&service, &username)
+            .expect("Failed to set password");
     }
 }

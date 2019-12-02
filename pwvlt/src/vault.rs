@@ -2,43 +2,28 @@ use crate::error::PassStoreError;
 use crate::keyring_store::KeyringStore;
 use crate::nitrokey_store::NitrokeyStore;
 use crate::pass_store::PassStore;
+use crate::util::{looping_prompt, random_password};
 
-macro_rules! push_store {
-    ($v: expr, $store: expr, $name: tt) => {
-        match $store {
-            Some(ref store) => $v.push(store),
-            None => println!("Skipping {}", $name),
-        }
-    };
-}
+use prettytable::{cell, row, Table};
+use rpassword::prompt_password_stdout;
 
+#[derive(Default)]
 pub struct PasswordVault {
-    nitrokey_store: Option<NitrokeyStore>,
-    keyring_store: Option<KeyringStore>,
+    stores: Vec<Box<dyn PassStore>>,
 }
 
 impl PasswordVault {
     pub fn new() -> PasswordVault {
-        let nk = NitrokeyStore::new().ok();
-        PasswordVault {
-            nitrokey_store: nk,
-            keyring_store: Some(KeyringStore::new()),
+        let mut stores: Vec<Box<dyn PassStore>> = Vec::with_capacity(2);
+        if let Ok(nk) = NitrokeyStore::new() {
+            stores.push(Box::new(nk));
         }
-    }
-
-    pub fn stores<'a>(&'a self) -> Vec<&'a dyn PassStore> {
-        let mut v: Vec<&dyn PassStore> = Vec::with_capacity(2);
-        push_store!(v, self.nitrokey_store, "Nitrokey");
-        push_store!(v, self.keyring_store, "Keyring");
-        assert!(
-            !v.is_empty(),
-            "No active stores to query... Skipping password search!"
-        );
-        v
+        stores.push(Box::new(KeyringStore::new()));
+        PasswordVault { stores }
     }
 
     pub fn password(&self, service: &str, username: &str) -> Result<String, PassStoreError> {
-        for store in self.stores() {
+        for store in &self.stores {
             let res = store.password(service, username);
             if let Err(err) = res {
                 store.handle_error(err);
@@ -47,5 +32,31 @@ impl PasswordVault {
             }
         }
         Err(PassStoreError::PasswordNotFound)
+    }
+
+    pub fn set_password(&self, service: &str, username: &str) -> Result<(), PassStoreError> {
+        let backend = self.prompt_backend();
+        let message = &format!(
+            "New password for user {} (empty for randomly generated password):",
+            username
+        );
+        let password = prompt_password_stdout(message)?;
+        let password = if password.is_empty() {
+            random_password()?
+        } else {
+            password
+        };
+        self.stores[backend].set_password(service, username, &password)
+    }
+
+    fn prompt_backend(&self) -> usize {
+        println!("Available password backends:");
+        let mut table = Table::new();
+        table.add_row(row!["#", "Backend"]);
+        for (i, store) in self.stores.iter().enumerate() {
+            table.add_row(row!(i.to_string(), store.name()));
+        }
+        table.printstd();
+        looping_prompt("backend", self.stores.len() - 1)
     }
 }
