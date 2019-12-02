@@ -7,6 +7,9 @@ use std::time::Duration;
 
 use pwvlt::vault::PasswordVault;
 
+mod config;
+mod error;
+
 const DEFAULT_TIMEOUT: u8 = 7;
 
 fn main() {
@@ -38,7 +41,7 @@ fn main() {
                 .args(&["set", "get"]),
         )
         .get_matches();
-    let pv = PasswordVault::new();
+    let pv = PasswordVault::new(config::load_config().unwrap());
     if let Some(mut values) = matches.values_of("get") {
         let service = values.next().unwrap();
         let username = values.next().unwrap();

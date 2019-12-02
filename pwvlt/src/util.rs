@@ -1,4 +1,5 @@
 use crate::error::PassStoreError;
+use crate::config;
 
 use passwords::PasswordGenerator;
 
@@ -7,14 +8,14 @@ use std::io::{self, stdout, BufRead, Write};
 use std::ops::Sub;
 use std::str::FromStr;
 
-pub fn random_password() -> Result<String, PassStoreError> {
+pub fn random_password(config: &config::Password) -> Result<String, PassStoreError> {
     let pg = PasswordGenerator {
-        length: 22,
-        numbers: true,
-        lowercase_letters: true,
-        uppercase_letters: true,
-        symbols: true,
-        strict: true,
+        length: config.length,
+        numbers: config.numbers,
+        lowercase_letters: config.lowercase_letters,
+        uppercase_letters: config.uppercase_letters,
+        symbols: config.symbols,
+        strict: config.strict,
     };
     pg.generate_one()
         .map_err(|e| PassStoreError::PasswordGenerationError(e.into()))
