@@ -1,3 +1,6 @@
+mod config;
+pub use config::Config;
+
 pub mod error;
 pub mod keyring_store;
 pub mod nitrokey_store;

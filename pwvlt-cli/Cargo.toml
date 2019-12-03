@@ -8,3 +8,6 @@ edition = "2018"
 clap = "2.33.0"
 clipboard = "0.5.0"
 pwvlt = { path = "../pwvlt/" }
+toml = "0.5.5"
+home = "0.5.1"
+derive-error = "0.0.4"

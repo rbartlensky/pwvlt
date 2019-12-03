@@ -1,3 +1,4 @@
+use crate::config::Config;
 use crate::error::PassStoreError;
 use crate::keyring_store::KeyringStore;
 use crate::nitrokey_store::NitrokeyStore;
@@ -9,17 +10,26 @@ use rpassword::prompt_password_stdout;
 
 #[derive(Default)]
 pub struct PasswordVault {
+    config: Config,
     stores: Vec<Box<dyn PassStore>>,
 }
 
 impl PasswordVault {
-    pub fn new() -> PasswordVault {
+    pub fn new(config: Config) -> PasswordVault {
         let mut stores: Vec<Box<dyn PassStore>> = Vec::with_capacity(2);
-        if let Ok(nk) = NitrokeyStore::new() {
-            stores.push(Box::new(nk));
+        for backend in &config.general.backends {
+            match backend.as_str() {
+                "nitrokey" => {
+                    match NitrokeyStore::new() {
+                        Ok(nk) => stores.push(Box::new(nk)),
+                        Err(e) => println!("Failed to access Nitrokey: {}", e),
+                    }
+                }
+                "keyring" => stores.push(Box::new(KeyringStore::new())),
+                b => println!("Skipping unknown backend '{}'", b),
+            }
         }
-        stores.push(Box::new(KeyringStore::new()));
-        PasswordVault { stores }
+        PasswordVault { stores, config }
     }
 
     pub fn password(&self, service: &str, username: &str) -> Result<String, PassStoreError> {
@@ -42,7 +52,7 @@ impl PasswordVault {
         );
         let password = prompt_password_stdout(message)?;
         let password = if password.is_empty() {
-            random_password()?
+            random_password(&self.config.password)?
         } else {
             password
         };
