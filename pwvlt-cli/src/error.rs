@@ -2,5 +2,6 @@
 pub enum Error {
     HomeNotFound,
     Io(std::io::Error),
-    Toml(toml::de::Error),
+    TomlDeserialize(toml::de::Error),
+    TomlSerialize(toml::ser::Error)
 }

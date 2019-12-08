@@ -31,3 +31,12 @@ pub fn load_config() -> Result<Config, Error> {
     }
     toml::from_str(&read_to_string(config_file)?).map_err(Error::from)
 }
+
+pub fn write_config(config: &Config) -> Result<(), Error> {
+    let home = home::home_dir().ok_or(Error::HomeNotFound)?;
+    write!(
+        File::create(home.join(".config").join("pwvlt").join("config.toml"))?,
+        "{}",
+        toml::to_string(config)?
+    ).map_err(Error::from)
+}

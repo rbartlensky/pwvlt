@@ -22,23 +22,26 @@ fn main() {
                 .short("g")
                 .long("get")
                 .help("Copy the password for <service> to the kill ring.")
-                .value_names(&["service", "username"])
-                .min_values(2)
-                .max_values(2),
+                .value_names(&["service", "username"]),
         )
         .arg(
             Arg::with_name("set")
                 .short("s")
                 .long("set")
                 .help("Set password for <service> <username>.")
-                .value_names(&["service", "username"])
-                .min_values(2)
-                .max_values(2),
+                .value_names(&["service", "username"]),
+        )
+        .arg(
+            Arg::with_name("set-default")
+                .short("d")
+                .long("set-default")
+                .help("Set the default <username> for <service>.")
+                .value_names(&["service", "username"]),
         )
         .group(
             ArgGroup::with_name("cmd")
                 .required(true)
-                .args(&["set", "get"]),
+                .args(&["set", "get", "set-default"]),
         )
         .get_matches();
     let pv = PasswordVault::new(config::load_config().unwrap());
@@ -70,5 +73,12 @@ fn main() {
         let username = values.next().unwrap();
         pv.set_password(&service, &username)
             .expect("Failed to set password");
+    }
+    if let Some(mut values) = matches.values_of("set-default") {
+        let service = values.next().unwrap();
+        let username = values.next().unwrap();
+        let mut config = config::load_config().expect("Failed to parse config");
+        config.default.insert(service.into(), username.into());
+        config::write_config(&config).unwrap();
     }
 }
