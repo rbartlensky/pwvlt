@@ -5,7 +5,7 @@ use std::io::{stdout, Write};
 use std::thread::sleep;
 use std::time::Duration;
 
-use pwvlt::vault::PasswordVault;
+use pwvlt::{util::prompt_string, vault::PasswordVault};
 
 mod config;
 mod error;
@@ -22,29 +22,35 @@ fn main() {
                 .short("g")
                 .long("get")
                 .help("Copy the password for <service> to the kill ring.")
-                .value_names(&["service", "username"])
-                .min_values(2)
-                .max_values(2),
+                .value_names(&["service"]),
         )
         .arg(
             Arg::with_name("set")
                 .short("s")
                 .long("set")
-                .help("Set password for <service> <username>.")
-                .value_names(&["service", "username"])
-                .min_values(2)
-                .max_values(2),
+                .help("Set password for <service>.")
+                .value_names(&["service"]),
+        )
+        .arg(
+            Arg::with_name("set-default")
+                .short("d")
+                .long("set-default")
+                .help("Set the default <username> for <service>.")
+                .value_names(&["service", "username"]),
         )
         .group(
             ArgGroup::with_name("cmd")
                 .required(true)
-                .args(&["set", "get"]),
+                .args(&["set", "get", "set-default"]),
         )
         .get_matches();
     let pv = PasswordVault::new(config::load_config().unwrap());
     if let Some(mut values) = matches.values_of("get") {
         let service = values.next().unwrap();
-        let username = values.next().unwrap();
+        let username = match pv.default(&service) {
+            Some(username) => username.to_string(),
+            None => prompt_string(format!("Enter username for {}", service)),
+        };
         match pv.password(&service, &username) {
             Ok(password) => {
                 let mut ctx: ClipboardContext =
@@ -67,8 +73,18 @@ fn main() {
     }
     if let Some(mut values) = matches.values_of("set") {
         let service = values.next().unwrap();
-        let username = values.next().unwrap();
+        let username = match pv.default(&service) {
+            Some(username) => username.to_string(),
+            None => prompt_string(format!("Enter username for {}", service)),
+        };
         pv.set_password(&service, &username)
             .expect("Failed to set password");
+    }
+    if let Some(mut values) = matches.values_of("set-default") {
+        let service = values.next().unwrap();
+        let username = values.next().unwrap();
+        let mut config = config::load_config().expect("Failed to parse config");
+        config.default.insert(service.into(), username.into());
+        config::write_config(&config).unwrap();
     }
 }

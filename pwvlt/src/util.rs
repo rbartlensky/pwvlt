@@ -26,12 +26,7 @@ where
     T: Ord + Sub + Display + FromStr,
 {
     loop {
-        print!("Select {} (0-{}): ", item, max_val);
-        stdout().flush().unwrap();
-        let mut item_val = String::new();
-        let stdin = io::stdin();
-        stdin.lock().read_line(&mut item_val).unwrap();
-        let item_val = item_val.trim();
+        let item_val = prompt_string(format!("Select {} (0-{})", item, max_val));
         if let Ok(item_val) = item_val.parse::<T>() {
             if item_val <= max_val {
                 return item_val;
@@ -41,4 +36,13 @@ where
             println!("Invalid {}: {}", item, item_val);
         }
     }
+}
+
+pub fn prompt_string<S: AsRef<str>>(message: S) -> String {
+    print!("{}: ", message.as_ref());
+    stdout().flush().unwrap();
+    let mut item_val = String::new();
+    let stdin = io::stdin();
+    stdin.lock().read_line(&mut item_val).unwrap();
+    item_val.trim().into()
 }
