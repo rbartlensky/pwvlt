@@ -69,4 +69,8 @@ impl PasswordVault {
         table.printstd();
         looping_prompt("backend", self.stores.len() - 1)
     }
+
+    pub fn default(&self, service: &str) -> Option<&String> {
+        self.config.default.get(service)
+    }
 }
