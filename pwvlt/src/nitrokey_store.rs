@@ -14,6 +14,14 @@ pub struct NitrokeyStore {
     device: DeviceWrapper,
 }
 
+impl Drop for NitrokeyStore {
+    fn drop(&mut self) {
+        if let Err(err) = self.device.lock() {
+            eprintln!("Failed to lock the Nitrokey: {:?}", err);
+        }
+    }
+}
+
 impl NitrokeyStore {
     pub fn new() -> Result<NitrokeyStore, PassStoreError> {
         let device = connect()?;
