@@ -5,7 +5,8 @@ use std::error::Error;
 use std::fmt;
 use std::io::Error as IoError;
 
-#[derive(Debug)]
+
+#[derive(derive_more::From, Debug)]
 pub enum PassStoreError {
     PasswordNotFound,
     KeyringError(KeyringError),
@@ -30,29 +31,5 @@ impl fmt::Display for PassStoreError {
             }
         };
         write!(f, "{}", message)
-    }
-}
-
-impl From<KeyringError> for PassStoreError {
-    fn from(err: KeyringError) -> Self {
-        Self::KeyringError(err)
-    }
-}
-
-impl From<IoError> for PassStoreError {
-    fn from(err: IoError) -> Self {
-        Self::IoError(err)
-    }
-}
-
-impl From<Box<dyn Error>> for PassStoreError {
-    fn from(err: Box<dyn Error>) -> Self {
-        Self::GeneralError(err)
-    }
-}
-
-impl From<CommandError> for PassStoreError {
-    fn from(err: CommandError) -> Self {
-        Self::NitrokeyError(err)
     }
 }
