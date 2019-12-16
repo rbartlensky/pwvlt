@@ -1,8 +1,8 @@
-use clap::{App, Arg, ArgGroup, ArgMatches};
+use clap::{App, Arg, ArgGroup, ArgMatches, Values};
 use clipboard::{ClipboardContext, ClipboardProvider};
 use log::error;
 
-use pwvlt::{util::prompt_string, vault::PasswordVault};
+use pwvlt::{error::PassStoreError, util::prompt_string, vault::PasswordVault};
 
 use std::io::{stdout, Write};
 use std::thread::sleep;
@@ -33,23 +33,33 @@ pub fn handle_get(
     Ok(())
 }
 
+fn create_vault_user_and_password<'a>(
+    config: pwvlt::Config,
+    values: &'a mut Values,
+) -> (PasswordVault, &'a str, String) {
+    let pv = PasswordVault::new(config);
+    let service = values.next().unwrap();
+    let username = match pv.default(&service) {
+        Some(username) => {
+            log::info!(
+                "Found default username: {} for service: {}",
+                username,
+                service
+            );
+            username.to_string()
+        }
+        None => prompt_string(format!("Enter username for {}", service)),
+    };
+    (pv, service, username)
+}
+
 fn handle_args(args: ArgMatches) -> Result<(), Error> {
     let mut config = config::load_config()?;
     if let Some(mut values) = args.values_of("get") {
-        let pv = PasswordVault::new(config);
-        let service = values.next().unwrap();
-        let username = match pv.default(&service) {
-            Some(username) => username.to_string(),
-            None => prompt_string(format!("Enter username for {}", service)),
-        };
+        let (pv, service, username) = create_vault_user_and_password(config, &mut values);
         handle_get(pv, service, &username)
     } else if let Some(mut values) = args.values_of("set") {
-        let pv = PasswordVault::new(config);
-        let service = values.next().unwrap();
-        let username = match pv.default(&service) {
-            Some(username) => username.to_string(),
-            None => prompt_string(format!("Enter username for {}", service)),
-        };
+        let (pv, service, username) = create_vault_user_and_password(config, &mut values);
         pv.set_password(&service, &username).map_err(Error::from)
     } else if let Some(mut values) = args.values_of("set-default") {
         let service = values.next().unwrap();
@@ -58,6 +68,27 @@ fn handle_args(args: ArgMatches) -> Result<(), Error> {
         write_config(&config)
     } else {
         Ok(())
+    }
+}
+
+fn handle_store_errors(err: PassStoreError) {
+    match err {
+        PassStoreError::KeyringError(e) => error!(
+            "An error occurred while accessing the Keyring backend: {}",
+            e
+        ),
+        PassStoreError::GeneralError(e) => error!("An internal error occurred: {}", e),
+        PassStoreError::IoError(e) => error!("An internal IO error occurred: {}", e),
+        PassStoreError::NitrokeyError(e) => error!(
+            "An error occurred while accessing the Nitrokey backend: {}",
+            e
+        ),
+        PassStoreError::PasswordGenerationError(e) => error!(
+            "An error occurred while generating a random password: {}",
+            e
+        ),
+        PassStoreError::PasswordNotFound => error!("No password could be found!"),
+        PassStoreError::SkipError => unimplemented!("SkipError"),
     }
 }
 
@@ -105,10 +136,13 @@ fn main() {
     if let Err(e) = handle_args(matches) {
         match e {
             Error::HomeNotFound => error!("Couldn't find home directory."),
-            Error::Io(e) => error!("An IO error occurred: {}", e),
+            Error::Io(e) => error!(
+                "An IO error occurred while parsing the configuration: {}",
+                e
+            ),
             Error::TomlDeserialize(e) => error!("Failed to deserialize config file: {}", e),
             Error::TomlSerialize(e) => error!("Failed to serialize config file: {}", e),
-            Error::PassStore(e) => error!("Internal error occurred: {}", e),
+            Error::PassStore(e) => handle_store_errors(e),
         }
     }
 }

@@ -17,6 +17,7 @@ pub fn random_password(config: &config::Password) -> Result<String, PassStoreErr
         symbols: config.symbols,
         strict: config.strict,
     };
+    log::info!("Generating random password.");
     pg.generate_one()
         .map_err(|e| PassStoreError::PasswordGenerationError(e.into()))
 }

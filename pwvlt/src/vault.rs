@@ -19,14 +19,18 @@ impl PasswordVault {
         let mut stores: Vec<Box<dyn PassStore>> = Vec::with_capacity(2);
         for backend in &config.general.backends {
             match backend.as_str() {
-                "nitrokey" => {
-                    match NitrokeyStore::new() {
-                        Ok(nk) => stores.push(Box::new(nk)),
-                        Err(e) => println!("Failed to access Nitrokey: {}", e),
+                "nitrokey" => match NitrokeyStore::new() {
+                    Ok(nk) => {
+                        log::info!("Nitrokey backend loaded successfully!");
+                        stores.push(Box::new(nk))
                     }
+                    Err(e) => log::warn!("Failed to access Nitrokey: {}", e),
+                },
+                "keyring" => {
+                    log::info!("Keyring backend loaded successfully!");
+                    stores.push(Box::new(KeyringStore::new()))
                 }
-                "keyring" => stores.push(Box::new(KeyringStore::new())),
-                b => println!("Skipping unknown backend '{}'", b),
+                b => log::warn!("Skipping unknown backend '{}'", b),
             }
         }
         PasswordVault { stores, config }
@@ -35,9 +39,11 @@ impl PasswordVault {
     pub fn password(&self, service: &str, username: &str) -> Result<String, PassStoreError> {
         for store in &self.stores {
             let res = store.password(service, username);
+            log::info!("Looking for password in {}.", store.name());
             if let Err(err) = res {
                 store.handle_error(err);
             } else {
+                log::info!("Found password in {}.", store.name());
                 return res;
             }
         }
@@ -50,6 +56,7 @@ impl PasswordVault {
             "New password for user {} (empty for randomly generated password):",
             username
         );
+        log::info!("Prompting for new password.");
         let password = prompt_password_stdout(message)?;
         let password = if password.is_empty() {
             random_password(&self.config.password)?

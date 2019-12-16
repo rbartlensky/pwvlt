@@ -21,22 +21,29 @@ strict = true
 pub fn load_config() -> Result<Config, Error> {
     let home = home::home_dir().ok_or(Error::HomeNotFound)?;
     // config will be loaded from ~/.config/pwvlt/config.toml
-    let config_folder = home.join(".config").join("pwvlt");
-    if !config_folder.exists() {
-        create_dir_all(&config_folder)?;
+    let config_dir = home.join(".config").join("pwvlt");
+    if !config_dir.exists() {
+        log::info!("Creating {}", config_dir.display());
+        create_dir_all(&config_dir)?;
     }
-    let config_file = config_folder.join("config.toml");
+    let config_file = config_dir.join("config.toml");
     if !config_file.exists() {
-        write!(File::create(&config_file)?, "{}", DEFAULT_CONFIG)?;
+        log::info!("Writing default config to: {}", config_file.display());
+        let mut config = File::create(&config_file)?;
+        write!(config, "{}", DEFAULT_CONFIG)?;
     }
-    toml::from_str(&read_to_string(config_file)?).map_err(Error::from)
+    log::info!("Loading toml config into memory");
+    let toml_config = read_to_string(config_file)?;
+    toml::from_str(&toml_config).map_err(Error::from)
 }
 
 pub fn write_config(config: &Config) -> Result<(), Error> {
     let home = home::home_dir().ok_or(Error::HomeNotFound)?;
+    log::info!("Writing pwvlt config.");
     write!(
         File::create(home.join(".config").join("pwvlt").join("config.toml"))?,
         "{}",
         toml::to_string(config)?
-    ).map_err(Error::from)
+    )
+    .map_err(Error::from)
 }
