@@ -34,7 +34,7 @@ impl PassStore for KeyringStore {
             PassStoreError::KeyringError(err) => format!("{}", err),
             _ => unreachable!("A KeyringStore shouldn't generate a {} error.", err),
         };
-        println!("{}", msg);
+        log::warn!("{}", msg);
     }
 
     fn name(&self) -> &'static str {

@@ -104,7 +104,7 @@ impl PassStore for NitrokeyStore {
             },
             err => unreachable!("A NitrokeyKeyStore shouldn't generate a {} error.", err),
         };
-        println!("{}", message);
+        log::warn!("{}", message);
     }
 
     fn name(&self) -> &'static str {

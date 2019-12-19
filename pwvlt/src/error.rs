@@ -5,7 +5,6 @@ use std::error::Error;
 use std::fmt;
 use std::io::Error as IoError;
 
-
 #[derive(derive_more::From, Debug)]
 pub enum PassStoreError {
     PasswordNotFound,
