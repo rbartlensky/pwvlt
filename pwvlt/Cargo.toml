@@ -7,7 +7,7 @@ edition = "2018"
 [dependencies]
 keyring = "0.7.1"
 toml = "0.5.3"
-nitrokey = { path = "../nitrokey-rs/" }
+nitrokey = "0.3.5"
 rpassword = "4.0"
 home = "0.5.0"
 passwords = "1.1.5"
