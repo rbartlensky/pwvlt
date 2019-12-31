@@ -12,6 +12,7 @@ use std::io::{stdout, Write};
 
 pub struct NitrokeyStore {
     device: DeviceWrapper,
+    unlock_hook: Box<dyn Fn() -> Result<String, PassStoreError>>,
 }
 
 impl Drop for NitrokeyStore {
@@ -23,20 +24,21 @@ impl Drop for NitrokeyStore {
 }
 
 impl NitrokeyStore {
-    pub fn new() -> Result<NitrokeyStore, PassStoreError> {
+    pub fn new(
+        unlock_hook: Box<dyn Fn() -> Result<String, PassStoreError>>
+    ) -> Result<NitrokeyStore, PassStoreError> {
         let device = connect()?;
-        Ok(NitrokeyStore { device })
+        Ok(NitrokeyStore { device, unlock_hook })
     }
 
     pub fn unlock_safe(&self) -> Result<PasswordSafe, PassStoreError> {
         let user_count = self.device.get_user_retry_count();
         if user_count < 1 {
-            println!("Nitrokey must be unlocked using the admin pin!");
-            println!("Please use the Nitrokey app to reset the user pin! Exiting.");
+            log::error!("Nitrokey must be unlocked using the admin pin!");
+            log::error!("Please use the Nitrokey app to reset the user pin! Exiting.");
             return Err(PassStoreError::SkipError);
         };
-        let pin =
-            prompt_password_stdout(&format!("Nitrokey user pin ({} tries left):", user_count))?;
+        let pin = (self.unlock_hook)()?;
         self.device
             .get_password_safe(&pin)
             .map_err(PassStoreError::from)
@@ -93,7 +95,7 @@ impl PassStore for NitrokeyStore {
         Ok(())
     }
 
-    fn handle_error(&self, err: PassStoreError) {
+    fn log_error(&self, err: PassStoreError) {
         let message = match err {
             PassStoreError::PasswordNotFound => "Password not found on Nitrokey!".into(),
             PassStoreError::SkipError => "Skipping Nitrokey search...".into(),

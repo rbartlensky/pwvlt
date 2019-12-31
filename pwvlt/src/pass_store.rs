@@ -10,7 +10,7 @@ pub trait PassStore {
         password: &str,
     ) -> Result<(), PassStoreError>;
 
-    fn handle_error(&self, err: PassStoreError);
+    fn log_error(&self, err: PassStoreError);
 
     fn name(&self) -> &'static str;
 }

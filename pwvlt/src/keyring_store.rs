@@ -29,7 +29,7 @@ impl PassStore for KeyringStore {
             .map_err(PassStoreError::from)
     }
 
-    fn handle_error(&self, err: PassStoreError) {
+    fn log_error(&self, err: PassStoreError) {
         let msg = match err {
             PassStoreError::KeyringError(err) => format!("{}", err),
             _ => unreachable!("A KeyringStore shouldn't generate a {} error.", err),
