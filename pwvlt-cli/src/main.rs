@@ -4,7 +4,7 @@ use log::error;
 use prettytable::{cell, row, Table};
 
 use pwvlt::{error::PassStoreError, util::prompt_string, vault::PasswordVault};
-use pwvlt::util::{looping_prompt, random_password};
+use pwvlt::util::looping_prompt;
 
 use std::io::{stdout, Write};
 use std::thread::sleep;

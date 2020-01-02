@@ -1,5 +1,5 @@
 use crate::error::PassStoreError;
-use crate::pass_store::PassStore;
+use crate::pass_store::{PassStore, Slot};
 
 use keyring::Keyring;
 
@@ -20,13 +20,12 @@ impl PassStore for KeyringStore {
 
     fn set_password(
         &self,
+        slot: usize,
         service: &str,
         username: &str,
         password: &str,
     ) -> Result<(), PassStoreError> {
-        Keyring::new(service, username)
-            .set_password(&password)
-            .map_err(PassStoreError::from)
+        unimplemented!("set_password");
     }
 
     fn log_error(&self, err: PassStoreError) {
@@ -39,5 +38,9 @@ impl PassStore for KeyringStore {
 
     fn name(&self) -> &'static str {
         "Keyring"
+    }
+
+    fn slots(&self) -> Result<Vec<Slot>, PassStoreError> {
+        unimplemented!("slots");
     }
 }

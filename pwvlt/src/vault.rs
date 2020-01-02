@@ -2,10 +2,13 @@ use crate::config::Config;
 use crate::error::PassStoreError;
 use crate::keyring_store::KeyringStore;
 use crate::nitrokey_store::NitrokeyStore;
-use crate::pass_store::PassStore;
+use crate::pass_store::{PassStore, Slot};
 use crate::util::{looping_prompt, random_password};
 
+use prettytable::{cell, row, Table};
 use rpassword::prompt_password_stdout;
+
+use std::io::{stdout, Write};
 
 #[derive(Default)]
 pub struct PasswordVault {
@@ -74,7 +77,27 @@ impl PasswordVault {
             password
         };
 
-        self.stores[backend].set_password(service, username, &password)
+        let backend = &self.stores[backend];
+        let slots = backend.slots()?;
+        self.print_slots(&slots)?;
+        let slot = looping_prompt("slot", slots.len() - 1);
+
+        backend.set_password(slot, service, username, &password)
+    }
+
+    fn print_slots(&self, slots: &Vec<Slot>) -> Result<(), PassStoreError> {
+        print!("Retrieving slots...\r");
+        stdout().flush().unwrap();
+        let mut table = Table::new();
+        table.add_row(row!["Slot", "Service", "Username"]);
+        slots
+            .iter()
+            .enumerate()
+            .for_each(|(slot, Slot { service, username })| {
+                table.add_row(row![slot.to_string(), service, username]);
+            });
+        table.printstd();
+        Ok(())
     }
 
     pub fn default(&self, service: &str) -> Option<&String> {
