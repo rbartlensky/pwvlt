@@ -8,13 +8,13 @@ use nitrokey::{
 use std::cell::RefCell;
 use std::ptr::NonNull;
 
-pub struct NitrokeyStore {
+pub struct NitrokeyStore<'a> {
     device: NonNull<DeviceWrapper>,
-    pws: RefCell<Option<PasswordSafe<'static>>>,
+    pws: RefCell<Option<PasswordSafe<'a>>>,
     unlock_hook: Box<dyn Fn() -> Result<String, PassStoreError>>,
 }
 
-impl Drop for NitrokeyStore {
+impl<'a> Drop for NitrokeyStore<'a> {
     fn drop(&mut self) {
         let device = unsafe { Box::from_raw(self.device.as_ptr()) };
         if let Err(err) = device.lock() {
@@ -23,10 +23,10 @@ impl Drop for NitrokeyStore {
     }
 }
 
-impl NitrokeyStore {
+impl<'a> NitrokeyStore<'a> {
     pub fn new(
         unlock_hook: Box<dyn Fn() -> Result<String, PassStoreError>>
-    ) -> Result<NitrokeyStore, PassStoreError> {
+    ) -> Result<NitrokeyStore<'a>, PassStoreError> {
         let device = Box::new(connect()?);
         let device = Box::leak(device);
         Ok(NitrokeyStore {
@@ -36,7 +36,7 @@ impl NitrokeyStore {
         })
     }
 
-    fn device(&self) -> &'static DeviceWrapper {
+    fn device(&self) -> &'a DeviceWrapper {
         unsafe {
             std::mem::transmute(self.device.as_ref())
         }
@@ -62,7 +62,7 @@ impl NitrokeyStore {
     }
 }
 
-impl PassStore for NitrokeyStore {
+impl<'a> PassStore for NitrokeyStore<'a> {
     fn password(&self, service: &str, username: &str) -> Result<String, PassStoreError> {
         self.unlock_safe()?;
         let pws_ref = &*self.pws.borrow();
