@@ -1,78 +1,82 @@
 use crate::error::PassStoreError;
-use crate::pass_store::PassStore;
-use crate::util::looping_prompt;
+use crate::pass_store::{PassStore, Slot};
 
 use nitrokey::{
     connect, CommandError, Device, DeviceWrapper, GetPasswordSafe, PasswordSafe, SLOT_COUNT,
 };
-use prettytable::{cell, row, Table};
-use rpassword::prompt_password_stdout;
 
-use std::io::{stdout, Write};
+use std::cell::RefCell;
+use std::ptr::NonNull;
 
-pub struct NitrokeyStore {
-    device: DeviceWrapper,
+pub struct NitrokeyStore<'a> {
+    device: NonNull<DeviceWrapper>,
+    pws: RefCell<Option<PasswordSafe<'a>>>,
+    unlock_hook: Box<dyn Fn() -> Result<String, PassStoreError>>,
 }
 
-impl Drop for NitrokeyStore {
+impl<'a> Drop for NitrokeyStore<'a> {
     fn drop(&mut self) {
-        if let Err(err) = self.device.lock() {
+        let device = unsafe { Box::from_raw(self.device.as_ptr()) };
+        if let Err(err) = device.lock() {
             eprintln!("Failed to lock the Nitrokey: {:?}", err);
         }
     }
 }
 
-impl NitrokeyStore {
-    pub fn new() -> Result<NitrokeyStore, PassStoreError> {
-        let device = connect()?;
-        Ok(NitrokeyStore { device })
+impl<'a> NitrokeyStore<'a> {
+    pub fn new(
+        unlock_hook: Box<dyn Fn() -> Result<String, PassStoreError>>
+    ) -> Result<NitrokeyStore<'a>, PassStoreError> {
+        let device = Box::new(connect()?);
+        let device = Box::leak(device);
+        Ok(NitrokeyStore {
+            device: NonNull::new(device).unwrap(),
+            pws: RefCell::new(None),
+            unlock_hook,
+        })
     }
 
-    pub fn unlock_safe(&self) -> Result<PasswordSafe, PassStoreError> {
-        let user_count = self.device.get_user_retry_count();
+    fn device(&self) -> &'a DeviceWrapper {
+        unsafe {
+            std::mem::transmute(self.device.as_ref())
+        }
+    }
+
+    pub fn unlock_safe(&self) -> Result<(), PassStoreError> {
+        if self.pws.borrow().is_some() {
+            return Ok(());
+        }
+
+        let user_count = self.device().get_user_retry_count();
         if user_count < 1 {
-            println!("Nitrokey must be unlocked using the admin pin!");
-            println!("Please use the Nitrokey app to reset the user pin! Exiting.");
+            log::error!("Nitrokey must be unlocked using the admin pin!");
+            log::error!("Please use the Nitrokey app to reset the user pin! Exiting.");
             return Err(PassStoreError::SkipError);
         };
-        let pin =
-            prompt_password_stdout(&format!("Nitrokey user pin ({} tries left):", user_count))?;
-        self.device
+        let pin = (self.unlock_hook)()?;
+        let pws = self.device()
             .get_password_safe(&pin)
-            .map_err(PassStoreError::from)
-    }
-
-    fn print_slots(&self, pws: &PasswordSafe) -> Result<(), PassStoreError> {
-        print!("Retrieving the Nitrokey slots...\r");
-        stdout().flush().unwrap();
-        let mut table = Table::new();
-        table.add_row(row!["Slot", "Service", "Username"]);
-        pws.get_slot_status()?
-            .iter()
-            .enumerate()
-            .for_each(|(slot, programmed)| {
-                let (name, login) = if *programmed {
-                    let name = pws.get_slot_name(slot as u8).unwrap_or_else(|_| "".into());
-                    let login = pws.get_slot_login(slot as u8).unwrap_or_else(|_| "".into());
-                    (name, login)
-                } else {
-                    ("".into(), "".into())
-                };
-                table.add_row(row![slot.to_string(), name, login]);
-            });
-        table.printstd();
+            .map_err(PassStoreError::from)?;
+        self.pws.replace(Some(pws));
         Ok(())
     }
 }
 
-impl PassStore for NitrokeyStore {
+impl<'a> PassStore for NitrokeyStore<'a> {
     fn password(&self, service: &str, username: &str) -> Result<String, PassStoreError> {
-        let password_safe = self.unlock_safe()?;
+        self.unlock_safe()?;
+        let pws_ref = &*self.pws.borrow();
+        let pws = if let Some(pws) = pws_ref {
+            pws
+        } else {
+            unreachable!("unlock_safe should've errored");
+        };
+
         for slot in 0..SLOT_COUNT {
-            if password_safe.get_slot_name(slot)? == service
-                && password_safe.get_slot_login(slot)? == username
+            if pws.get_slot_name(slot)? == service
+                && pws.get_slot_login(slot)? == username
             {
-                return password_safe
+                return pws
                     .get_slot_password(slot)
                     .map_err(PassStoreError::from);
             }
@@ -82,18 +86,24 @@ impl PassStore for NitrokeyStore {
 
     fn set_password(
         &self,
+        slot: usize,
         service: &str,
         username: &str,
         password: &str,
     ) -> Result<(), PassStoreError> {
-        let password_safe = self.unlock_safe()?;
-        self.print_slots(&password_safe)?;
-        let slot = looping_prompt("slot", SLOT_COUNT - 1);
-        password_safe.write_slot(slot, service, username, password)?;
+        self.unlock_safe()?;
+        let pws_ref = &*self.pws.borrow();
+        let pws = if let Some(pws) = pws_ref {
+            pws
+        } else {
+            unreachable!("unlock_safe should've errored");
+        };
+
+        pws.write_slot(slot as u8, service, username, password)?;
         Ok(())
     }
 
-    fn handle_error(&self, err: PassStoreError) {
+    fn log_error(&self, err: PassStoreError) {
         let message = match err {
             PassStoreError::PasswordNotFound => "Password not found on Nitrokey!".into(),
             PassStoreError::SkipError => "Skipping Nitrokey search...".into(),
@@ -109,5 +119,32 @@ impl PassStore for NitrokeyStore {
 
     fn name(&self) -> &'static str {
         "Nitrokey"
+    }
+
+    fn slots(&self) -> Result<Vec<Slot>, PassStoreError> {
+        self.unlock_safe()?;
+        let pws_ref = &*self.pws.borrow();
+        let pws = if let Some(pws) = pws_ref {
+            pws
+        } else {
+            unreachable!("unlock_safe should've errored");
+        };
+
+        let slots = pws.get_slot_status()?
+            .iter()
+            .enumerate()
+            .map(|(slot, programmed)| {
+                if *programmed {
+                    let service =
+                        pws.get_slot_name(slot as u8).unwrap_or_else(|_| "".into());
+                    let username =
+                        pws.get_slot_login(slot as u8).unwrap_or_else(|_| "".into());
+                    Slot { service, username }
+                } else {
+                    Default::default()
+                }
+            })
+            .collect();
+        Ok(slots)
     }
 }

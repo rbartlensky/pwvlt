@@ -14,6 +14,7 @@ pub enum PassStoreError {
     NitrokeyError(CommandError),
     SkipError,
     PasswordGenerationError(String),
+    LockedError,
 }
 
 impl fmt::Display for PassStoreError {
@@ -27,7 +28,8 @@ impl fmt::Display for PassStoreError {
             PassStoreError::SkipError => "Skip error".to_string(),
             PassStoreError::PasswordGenerationError(err) => {
                 format!("Error generating password: {}", err)
-            }
+            },
+            PassStoreError::LockedError => "Backend still locked".to_string(),
         };
         write!(f, "{}", message)
     }

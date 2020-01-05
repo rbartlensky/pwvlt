@@ -1,8 +1,10 @@
 use clap::{App, Arg, ArgGroup, ArgMatches, Values};
 use clipboard::{ClipboardContext, ClipboardProvider};
 use log::error;
+use prettytable::{cell, row, Table};
 
 use pwvlt::{error::PassStoreError, util::prompt_string, vault::PasswordVault};
+use pwvlt::util::looping_prompt;
 
 use std::io::{stdout, Write};
 use std::thread::sleep;
@@ -33,6 +35,27 @@ pub fn handle_get(
     Ok(())
 }
 
+pub fn handle_set(
+    pv: pwvlt::vault::PasswordVault,
+    service: &str,
+    username: &str,
+) -> Result<(), Error> {
+    let backend_id = prompt_backend(&pv);
+    pv.set_password(backend_id, &service, &username).map_err(Error::from)
+}
+
+fn prompt_backend(pv: &pwvlt::vault::PasswordVault) -> usize {
+    println!("Available password backends:");
+    let mut table = Table::new();
+    table.add_row(row!["#", "Backend"]);
+    let backends = pv.stores();
+    for (i, backend) in backends.iter().enumerate() {
+        table.add_row(row!(i.to_string(), backend.name()));
+    }
+    table.printstd();
+    looping_prompt("backend", backends.len() - 1)
+}
+
 fn create_vault_user_and_password<'a>(
     config: pwvlt::Config,
     values: &'a mut Values,
@@ -60,7 +83,7 @@ fn handle_args(args: ArgMatches) -> Result<(), Error> {
         handle_get(pv, service, &username)
     } else if let Some(mut values) = args.values_of("set") {
         let (pv, service, username) = create_vault_user_and_password(config, &mut values);
-        pv.set_password(&service, &username).map_err(Error::from)
+        handle_set(pv, service, &username)
     } else if let Some(mut values) = args.values_of("set-default") {
         let service = values.next().unwrap();
         let username = values.next().unwrap();
@@ -89,6 +112,9 @@ fn handle_store_errors(err: PassStoreError) {
         ),
         PassStoreError::PasswordNotFound => error!("No password could be found!"),
         PassStoreError::SkipError => unimplemented!("SkipError"),
+        PassStoreError::LockedError => error!(
+            "An error occurred while unlocking the Nitrokey backend"
+        ),
     }
 }
 
