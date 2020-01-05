@@ -85,7 +85,7 @@ impl PasswordVault {
         backend.set_password(slot, service, username, &password)
     }
 
-    fn print_slots(&self, slots: &Vec<Slot>) -> Result<(), PassStoreError> {
+    fn print_slots(&self, slots: &[Slot]) -> Result<(), PassStoreError> {
         print!("Retrieving slots...\r");
         stdout().flush().unwrap();
         let mut table = Table::new();

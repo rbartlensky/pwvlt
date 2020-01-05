@@ -29,7 +29,7 @@ impl fmt::Display for PassStoreError {
             PassStoreError::PasswordGenerationError(err) => {
                 format!("Error generating password: {}", err)
             },
-            PassStoreError::LockedError => format!("Backend still locked"),
+            PassStoreError::LockedError => "Backend still locked".to_string(),
         };
         write!(f, "{}", message)
     }

@@ -20,10 +20,10 @@ impl PassStore for KeyringStore {
 
     fn set_password(
         &self,
-        slot: usize,
-        service: &str,
-        username: &str,
-        password: &str,
+        _slot: usize,
+        _service: &str,
+        _username: &str,
+        _password: &str,
     ) -> Result<(), PassStoreError> {
         unimplemented!("set_password");
     }
