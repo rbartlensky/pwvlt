@@ -37,8 +37,13 @@ impl PasswordVault {
                     }
                 }
                 "keyring" => {
-                    log::info!("Keyring backend loaded successfully!");
-                    stores.push(Box::new(KeyringStore::new()))
+                    match KeyringStore::new() {
+                        Ok(kr) => {
+                            log::info!("Keyring backend loaded successfully!");
+                            stores.push(Box::new(kr))
+                        }
+                        Err(e) => log::warn!("Failed to access Keyring: {}", e),
+                    }
                 }
                 b => log::warn!("Skipping unknown backend '{}'", b),
             }

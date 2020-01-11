@@ -1,5 +1,6 @@
 use crate::error::PassStoreError;
 
+#[derive(Clone)]
 pub struct Slot {
     pub service: String,
     pub username: String,

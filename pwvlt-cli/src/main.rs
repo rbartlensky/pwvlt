@@ -3,8 +3,8 @@ use clipboard::{ClipboardContext, ClipboardProvider};
 use log::error;
 use prettytable::{cell, row, Table};
 
-use pwvlt::{error::PassStoreError, util::prompt_string, vault::PasswordVault};
 use pwvlt::util::looping_prompt;
+use pwvlt::{error::PassStoreError, util::prompt_string, vault::PasswordVault};
 
 use std::io::{stdout, Write};
 use std::thread::sleep;
@@ -41,7 +41,7 @@ pub fn handle_set(
     username: &str,
 ) -> Result<(), Error> {
     let backend_id = prompt_backend(&pv);
-    pv.set_password(backend_id, &service, &username).map_err(Error::from)
+    Ok(pv.set_password(backend_id, &service, &username)?)
 }
 
 fn prompt_backend(pv: &pwvlt::vault::PasswordVault) -> usize {
@@ -96,7 +96,7 @@ fn handle_args(args: ArgMatches) -> Result<(), Error> {
 
 fn handle_store_errors(err: PassStoreError) {
     match err {
-        PassStoreError::KeyringError(e) => error!(
+        PassStoreError::Keyring(e) => error!(
             "An error occurred while accessing the Keyring backend: {}",
             e
         ),
@@ -112,9 +112,10 @@ fn handle_store_errors(err: PassStoreError) {
         ),
         PassStoreError::PasswordNotFound => error!("No password could be found!"),
         PassStoreError::SkipError => unimplemented!("SkipError"),
-        PassStoreError::LockedError => error!(
-            "An error occurred while unlocking the Nitrokey backend"
-        ),
+        PassStoreError::LockedError => {
+            error!("An error occurred while unlocking the Nitrokey backend")
+        }
+        PassStoreError::Utf8(_) => error!("Failed to parse a password as Utf8"),
     }
 }
 
