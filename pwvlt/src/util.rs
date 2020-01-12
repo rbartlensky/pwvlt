@@ -1,5 +1,5 @@
 use crate::config;
-use crate::error::PassStoreError;
+use crate::error::PwvltError;
 
 use passwords::PasswordGenerator;
 
@@ -8,7 +8,7 @@ use std::io::{self, stdout, BufRead, Write};
 use std::ops::Sub;
 use std::str::FromStr;
 
-pub fn random_password(config: &config::Password) -> Result<String, PassStoreError> {
+pub fn random_password(config: &config::Password) -> Result<String, PwvltError> {
     let pg = PasswordGenerator {
         length: config.length,
         numbers: config.numbers,
@@ -19,7 +19,7 @@ pub fn random_password(config: &config::Password) -> Result<String, PassStoreErr
     };
     log::info!("Generating random password.");
     pg.generate_one()
-        .map_err(|e| PassStoreError::PasswordGenerationError(e.into()))
+        .map_err(|e| PwvltError::PasswordGeneration(e.into()))
 }
 
 pub fn looping_prompt<T>(item: &str, max_val: T) -> T

@@ -1,4 +1,4 @@
-use crate::error::PassStoreError;
+use crate::error::PwvltError;
 use crate::pass_store::{PassStore, Slot};
 
 use secret_service::{Collection, EncryptionType, SecretService};
@@ -16,7 +16,7 @@ pub struct KeyringStore<'a> {
 }
 
 impl<'a> KeyringStore<'a> {
-    pub fn new() -> Result<KeyringStore<'a>, PassStoreError> {
+    pub fn new() -> Result<KeyringStore<'a>, PwvltError> {
         let ss = Box::leak(Box::new(SecretService::new(EncryptionType::Dh)?));
         Ok(KeyringStore {
             secret_service: NonNull::from(ss),
@@ -27,7 +27,7 @@ impl<'a> KeyringStore<'a> {
 
     /// Tries to unlock the collection. It also initialises collection and
     /// slots fields in case the underlying values are None.
-    fn unlock_collection(&self) -> Result<(), PassStoreError> {
+    fn unlock_collection(&self) -> Result<(), PwvltError> {
         if self.collection.borrow().is_none() {
             let collection = unsafe {
                 std::mem::transmute::<&SecretService, &'a SecretService>(
@@ -75,11 +75,11 @@ impl<'a> KeyringStore<'a> {
         }
     }
 
-    fn delete_password(&self, service: &str, username: &str) -> Result<(), PassStoreError> {
+    fn delete_password(&self, service: &str, username: &str) -> Result<(), PwvltError> {
         if let Some(collection) = &*self.collection.borrow() {
             let attrs = vec![("service", service), ("username", username)];
             let search = collection.search_items(attrs)?;
-            let item = search.get(0).ok_or(PassStoreError::PasswordNotFound)?;
+            let item = search.get(0).ok_or(PwvltError::PasswordNotFound)?;
             item.delete()?;
             Ok(())
         } else {
@@ -89,12 +89,12 @@ impl<'a> KeyringStore<'a> {
 }
 
 impl<'a> PassStore for KeyringStore<'a> {
-    fn password(&self, service: &str, username: &str) -> Result<String, PassStoreError> {
+    fn password(&self, service: &str, username: &str) -> Result<String, PwvltError> {
         self.unlock_collection()?;
         if let Some(collection) = &*self.collection.borrow() {
             let attrs = vec![("service", service), ("username", username)];
             let search = collection.search_items(attrs)?;
-            let item = search.get(0).ok_or(PassStoreError::PasswordNotFound)?;
+            let item = search.get(0).ok_or(PwvltError::PasswordNotFound)?;
             let secret_bytes = item.get_secret()?;
             Ok(String::from_utf8(secret_bytes)?)
         } else {
@@ -108,7 +108,7 @@ impl<'a> PassStore for KeyringStore<'a> {
         service: &str,
         username: &str,
         password: &str,
-    ) -> Result<(), PassStoreError> {
+    ) -> Result<(), PwvltError> {
         self.unlock_collection()?;
         // if the slot_index is not out-of-bounds, then the user is trying to
         // replace this particular slot with new values.
@@ -136,10 +136,10 @@ impl<'a> PassStore for KeyringStore<'a> {
         }
     }
 
-    fn log_error(&self, err: PassStoreError) {
+    fn log_error(&self, err: PwvltError) {
         let msg = match err {
-            PassStoreError::Keyring(err) => err.to_string(),
-            PassStoreError::PasswordNotFound => "Password not found in Keyring".to_string(),
+            PwvltError::Keyring(err) => err.to_string(),
+            PwvltError::PasswordNotFound => "Password not found in Keyring".to_string(),
             _ => unreachable!("A KeyringStore shouldn't generate a {} error.", err),
         };
         log::warn!("{}", msg);
@@ -149,7 +149,7 @@ impl<'a> PassStore for KeyringStore<'a> {
         "Keyring"
     }
 
-    fn slots(&self) -> Result<Vec<Slot>, PassStoreError> {
+    fn slots(&self) -> Result<Vec<Slot>, PwvltError> {
         self.unlock_collection()?;
         if let Some(slots) = &*self.slots.borrow() {
             let mut slots = slots.clone();

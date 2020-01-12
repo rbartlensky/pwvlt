@@ -4,7 +4,7 @@ use log::error;
 use prettytable::{cell, row, Table};
 
 use pwvlt::util::looping_prompt;
-use pwvlt::{error::PassStoreError, util::prompt_string, vault::PasswordVault};
+use pwvlt::{error::PwvltError, util::prompt_string, vault::PasswordVault};
 
 use std::io::{stdout, Write};
 use std::thread::sleep;
@@ -94,28 +94,24 @@ fn handle_args(args: ArgMatches) -> Result<(), Error> {
     }
 }
 
-fn handle_store_errors(err: PassStoreError) {
+fn handle_store_errors(err: PwvltError) {
     match err {
-        PassStoreError::Keyring(e) => error!(
+        PwvltError::Keyring(e) => error!(
             "An error occurred while accessing the Keyring backend: {}",
             e
         ),
-        PassStoreError::GeneralError(e) => error!("An internal error occurred: {}", e),
-        PassStoreError::IoError(e) => error!("An internal IO error occurred: {}", e),
-        PassStoreError::NitrokeyError(e) => error!(
+        PwvltError::Io(e) => error!("An internal IO error occurred: {}", e),
+        PwvltError::Nitrokey(e) => error!(
             "An error occurred while accessing the Nitrokey backend: {}",
             e
         ),
-        PassStoreError::PasswordGenerationError(e) => error!(
+        PwvltError::PasswordGeneration(e) => error!(
             "An error occurred while generating a random password: {}",
             e
         ),
-        PassStoreError::PasswordNotFound => error!("No password could be found!"),
-        PassStoreError::SkipError => unimplemented!("SkipError"),
-        PassStoreError::LockedError => {
-            error!("An error occurred while unlocking the Nitrokey backend")
-        }
-        PassStoreError::Utf8(_) => error!("Failed to parse a password as Utf8"),
+        PwvltError::PasswordNotFound => error!("No password could be found!"),
+        PwvltError::Skip => unimplemented!("SkipError"),
+        PwvltError::Utf8(_) => error!("Failed to parse a password as Utf8"),
     }
 }
 
@@ -170,6 +166,7 @@ fn main() {
             Error::TomlDeserialize(e) => error!("Failed to deserialize config file: {}", e),
             Error::TomlSerialize(e) => error!("Failed to serialize config file: {}", e),
             Error::PassStore(e) => handle_store_errors(e),
+            Error::General(e) => error!("An internal error occured: {}", e),
         }
     }
 }

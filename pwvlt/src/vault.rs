@@ -1,5 +1,5 @@
 use crate::config::{BackendName, Config};
-use crate::error::PassStoreError;
+use crate::error::PwvltError;
 use crate::keyring_store::KeyringStore;
 use crate::nitrokey_store::NitrokeyStore;
 use crate::pass_store::{PassStore, Slot};
@@ -22,7 +22,7 @@ impl PasswordVault {
         for backend in &config.general.backends {
             match backend {
                 BackendName::Nitrokey => {
-                    let unlock_hook = || -> Result<String, PassStoreError> {
+                    let unlock_hook = || -> Result<String, PwvltError> {
                         let pin =
                             prompt_password_stdout("Nitrokey user pin:")?;
                         Ok(pin)
@@ -54,7 +54,7 @@ impl PasswordVault {
         &self.stores
     }
 
-    pub fn password(&self, service: &str, username: &str) -> Result<String, PassStoreError> {
+    pub fn password(&self, service: &str, username: &str) -> Result<String, PwvltError> {
         for store in &self.stores {
             let res = store.password(service, username);
             log::info!("Looking for password in {}.", store.name());
@@ -65,10 +65,10 @@ impl PasswordVault {
                 return res;
             }
         }
-        Err(PassStoreError::PasswordNotFound)
+        Err(PwvltError::PasswordNotFound)
     }
 
-    pub fn set_password(&self, backend: usize, service: &str, username: &str) -> Result<(), PassStoreError> {
+    pub fn set_password(&self, backend: usize, service: &str, username: &str) -> Result<(), PwvltError> {
         let message = &format!(
             "New password for user {} (empty for randomly generated password):",
             username
@@ -89,7 +89,7 @@ impl PasswordVault {
         backend.set_password(slot, service, username, &password)
     }
 
-    fn print_slots(&self, slots: &[Slot]) -> Result<(), PassStoreError> {
+    fn print_slots(&self, slots: &[Slot]) -> Result<(), PwvltError> {
         print!("Retrieving slots...\r");
         stdout().flush().unwrap();
         let mut table = Table::new();

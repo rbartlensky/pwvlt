@@ -1,4 +1,4 @@
-use crate::error::PassStoreError;
+use crate::error::PwvltError;
 use crate::pass_store::{PassStore, Slot};
 
 use nitrokey::{
@@ -11,7 +11,7 @@ use std::ptr::NonNull;
 pub struct NitrokeyStore<'a> {
     device: NonNull<DeviceWrapper>,
     pws: RefCell<Option<PasswordSafe<'a>>>,
-    unlock_hook: Box<dyn Fn() -> Result<String, PassStoreError>>,
+    unlock_hook: Box<dyn Fn() -> Result<String, PwvltError>>,
 }
 
 impl<'a> Drop for NitrokeyStore<'a> {
@@ -25,8 +25,8 @@ impl<'a> Drop for NitrokeyStore<'a> {
 
 impl<'a> NitrokeyStore<'a> {
     pub fn new(
-        unlock_hook: Box<dyn Fn() -> Result<String, PassStoreError>>
-    ) -> Result<NitrokeyStore<'a>, PassStoreError> {
+        unlock_hook: Box<dyn Fn() -> Result<String, PwvltError>>
+    ) -> Result<NitrokeyStore<'a>, PwvltError> {
         let device = Box::new(connect()?);
         let device = Box::leak(device);
         Ok(NitrokeyStore {
@@ -42,7 +42,7 @@ impl<'a> NitrokeyStore<'a> {
         }
     }
 
-    pub fn unlock_safe(&self) -> Result<(), PassStoreError> {
+    pub fn unlock_safe(&self) -> Result<(), PwvltError> {
         if self.pws.borrow().is_some() {
             return Ok(());
         }
@@ -51,19 +51,19 @@ impl<'a> NitrokeyStore<'a> {
         if user_count < 1 {
             log::error!("Nitrokey must be unlocked using the admin pin!");
             log::error!("Please use the Nitrokey app to reset the user pin! Exiting.");
-            return Err(PassStoreError::SkipError);
+            return Err(PwvltError::Skip);
         };
         let pin = (self.unlock_hook)()?;
         let pws = self.device()
             .get_password_safe(&pin)
-            .map_err(PassStoreError::from)?;
+            .map_err(PwvltError::from)?;
         self.pws.replace(Some(pws));
         Ok(())
     }
 }
 
 impl<'a> PassStore for NitrokeyStore<'a> {
-    fn password(&self, service: &str, username: &str) -> Result<String, PassStoreError> {
+    fn password(&self, service: &str, username: &str) -> Result<String, PwvltError> {
         self.unlock_safe()?;
         let pws_ref = &*self.pws.borrow();
         let pws = if let Some(pws) = pws_ref {
@@ -78,10 +78,10 @@ impl<'a> PassStore for NitrokeyStore<'a> {
             {
                 return pws
                     .get_slot_password(slot)
-                    .map_err(PassStoreError::from);
+                    .map_err(PwvltError::from);
             }
         }
-        Err(PassStoreError::PasswordNotFound)
+        Err(PwvltError::PasswordNotFound)
     }
 
     fn set_password(
@@ -90,7 +90,7 @@ impl<'a> PassStore for NitrokeyStore<'a> {
         service: &str,
         username: &str,
         password: &str,
-    ) -> Result<(), PassStoreError> {
+    ) -> Result<(), PwvltError> {
         self.unlock_safe()?;
         let pws_ref = &*self.pws.borrow();
         let pws = if let Some(pws) = pws_ref {
@@ -103,11 +103,11 @@ impl<'a> PassStore for NitrokeyStore<'a> {
         Ok(())
     }
 
-    fn log_error(&self, err: PassStoreError) {
+    fn log_error(&self, err: PwvltError) {
         let message = match err {
-            PassStoreError::PasswordNotFound => "Password not found on Nitrokey!".into(),
-            PassStoreError::SkipError => "Skipping Nitrokey search...".into(),
-            PassStoreError::NitrokeyError(nke) => match nke {
+            PwvltError::PasswordNotFound => "Password not found on Nitrokey!".into(),
+            PwvltError::Skip => "Skipping Nitrokey search...".into(),
+            PwvltError::Nitrokey(nke) => match nke {
                 CommandError::Undefined => "Couldn't connect to the Nitrokey!".into(),
                 CommandError::WrongPassword => "User pin was incorrect.".into(),
                 err => format!("Nitrokey error: {}", err),
@@ -121,7 +121,7 @@ impl<'a> PassStore for NitrokeyStore<'a> {
         "Nitrokey"
     }
 
-    fn slots(&self) -> Result<Vec<Slot>, PassStoreError> {
+    fn slots(&self) -> Result<Vec<Slot>, PwvltError> {
         self.unlock_safe()?;
         let pws_ref = &*self.pws.borrow();
         let pws = if let Some(pws) = pws_ref {
