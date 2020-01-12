@@ -1,4 +1,4 @@
-use crate::config::Config;
+use crate::config::{BackendName, Config};
 use crate::error::PassStoreError;
 use crate::keyring_store::KeyringStore;
 use crate::nitrokey_store::NitrokeyStore;
@@ -20,8 +20,8 @@ impl PasswordVault {
     pub fn new(config: Config) -> PasswordVault {
         let mut stores: Vec<Box<dyn PassStore>> = Vec::with_capacity(2);
         for backend in &config.general.backends {
-            match backend.as_str() {
-                "nitrokey" => {
+            match backend {
+                BackendName::Nitrokey => {
                     let unlock_hook = || -> Result<String, PassStoreError> {
                         let pin =
                             prompt_password_stdout("Nitrokey user pin:")?;
@@ -36,7 +36,7 @@ impl PasswordVault {
                         Err(e) => log::warn!("Failed to access Nitrokey: {}", e),
                     }
                 }
-                "keyring" => {
+                BackendName::Keyring => {
                     match KeyringStore::new() {
                         Ok(kr) => {
                             log::info!("Keyring backend loaded successfully!");
@@ -45,7 +45,6 @@ impl PasswordVault {
                         Err(e) => log::warn!("Failed to access Keyring: {}", e),
                     }
                 }
-                b => log::warn!("Skipping unknown backend '{}'", b),
             }
         }
         PasswordVault { stores, config }
