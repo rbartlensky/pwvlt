@@ -14,6 +14,13 @@ pub struct KeyringStore<'a> {
     slots: RefCell<Option<Vec<Slot>>>,
 }
 
+impl<'a> Drop for KeyringStore<'a> {
+    fn drop(&mut self) {
+        // make sure we release the secret_service field.
+        unsafe { Box::from_raw(self.secret_service.as_ptr()) };
+    }
+}
+
 impl<'a> KeyringStore<'a> {
     pub fn new() -> Result<KeyringStore<'a>, PwvltError> {
         let ss = Box::leak(Box::new(SecretService::new(EncryptionType::Dh)?));
