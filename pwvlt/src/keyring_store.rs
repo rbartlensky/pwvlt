@@ -1,5 +1,4 @@
-use crate::error::PwvltError;
-use crate::pass_store::{PassStore, Slot};
+use crate::{PassStore, PwvltError, Slot};
 
 use secret_service::{Collection, EncryptionType, SecretService};
 

@@ -1,4 +1,4 @@
-use pwvlt::error::PwvltError;
+use pwvlt::PwvltError;
 
 #[derive(derive_more::From, Debug, derive_more::Display)]
 pub enum Error {

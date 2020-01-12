@@ -1,5 +1,4 @@
-use crate::error::PwvltError;
-use crate::pass_store::{PassStore, Slot};
+use crate::{PassStore, PwvltError, Slot};
 
 use nitrokey::{
     connect, CommandError, Device, DeviceWrapper, GetPasswordSafe, PasswordSafe, SLOT_COUNT,
@@ -25,7 +24,7 @@ impl<'a> Drop for NitrokeyStore<'a> {
 
 impl<'a> NitrokeyStore<'a> {
     pub fn new(
-        unlock_hook: Box<dyn Fn() -> Result<String, PwvltError>>
+        unlock_hook: Box<dyn Fn() -> Result<String, PwvltError>>,
     ) -> Result<NitrokeyStore<'a>, PwvltError> {
         let device = Box::new(connect()?);
         let device = Box::leak(device);
@@ -37,9 +36,7 @@ impl<'a> NitrokeyStore<'a> {
     }
 
     fn device(&self) -> &'a DeviceWrapper {
-        unsafe {
-            std::mem::transmute(self.device.as_ref())
-        }
+        unsafe { std::mem::transmute(self.device.as_ref()) }
     }
 
     pub fn unlock_safe(&self) -> Result<(), PwvltError> {
@@ -54,7 +51,8 @@ impl<'a> NitrokeyStore<'a> {
             return Err(PwvltError::Skip);
         };
         let pin = (self.unlock_hook)()?;
-        let pws = self.device()
+        let pws = self
+            .device()
             .get_password_safe(&pin)
             .map_err(PwvltError::from)?;
         self.pws.replace(Some(pws));
@@ -73,12 +71,8 @@ impl<'a> PassStore for NitrokeyStore<'a> {
         };
 
         for slot in 0..SLOT_COUNT {
-            if pws.get_slot_name(slot)? == service
-                && pws.get_slot_login(slot)? == username
-            {
-                return pws
-                    .get_slot_password(slot)
-                    .map_err(PwvltError::from);
+            if pws.get_slot_name(slot)? == service && pws.get_slot_login(slot)? == username {
+                return pws.get_slot_password(slot).map_err(PwvltError::from);
             }
         }
         Err(PwvltError::PasswordNotFound)
@@ -130,15 +124,14 @@ impl<'a> PassStore for NitrokeyStore<'a> {
             unreachable!("unlock_safe should've errored");
         };
 
-        let slots = pws.get_slot_status()?
+        let slots = pws
+            .get_slot_status()?
             .iter()
             .enumerate()
             .map(|(slot, programmed)| {
                 if *programmed {
-                    let service =
-                        pws.get_slot_name(slot as u8).unwrap_or_else(|_| "".into());
-                    let username =
-                        pws.get_slot_login(slot as u8).unwrap_or_else(|_| "".into());
+                    let service = pws.get_slot_name(slot as u8).unwrap_or_else(|_| "".into());
+                    let username = pws.get_slot_login(slot as u8).unwrap_or_else(|_| "".into());
                     Slot { service, username }
                 } else {
                     Default::default()

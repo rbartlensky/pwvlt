@@ -1,5 +1,4 @@
-use crate::config;
-use crate::error::PwvltError;
+use crate::{config, PwvltError};
 
 use passwords::PasswordGenerator;
 

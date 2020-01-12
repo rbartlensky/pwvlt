@@ -4,7 +4,7 @@ use log::error;
 use prettytable::{cell, row, Table};
 
 use pwvlt::util::looping_prompt;
-use pwvlt::{error::PwvltError, util::prompt_string, vault::PasswordVault};
+use pwvlt::{PwvltError, util::prompt_string, PasswordVault};
 
 use std::io::{stdout, Write};
 use std::thread::sleep;
@@ -18,7 +18,7 @@ use error::Error;
 const DEFAULT_TIMEOUT: u8 = 7;
 
 pub fn handle_get(
-    pv: pwvlt::vault::PasswordVault,
+    pv: PasswordVault,
     service: &str,
     username: &str,
 ) -> Result<(), Error> {
@@ -36,7 +36,7 @@ pub fn handle_get(
 }
 
 pub fn handle_set(
-    pv: pwvlt::vault::PasswordVault,
+    pv: PasswordVault,
     service: &str,
     username: &str,
 ) -> Result<(), Error> {
@@ -44,7 +44,7 @@ pub fn handle_set(
     Ok(pv.set_password(backend_id, &service, &username)?)
 }
 
-fn prompt_backend(pv: &pwvlt::vault::PasswordVault) -> usize {
+fn prompt_backend(pv: &PasswordVault) -> usize {
     println!("Available password backends:");
     let mut table = Table::new();
     table.add_row(row!["#", "Backend"]);

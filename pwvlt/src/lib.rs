@@ -1,9 +1,13 @@
 mod config;
 pub use config::Config;
-
-pub mod error;
-pub mod keyring_store;
-pub mod nitrokey_store;
-pub mod pass_store;
+mod error;
+pub use error::PwvltError;
+mod keyring_store;
+pub use keyring_store::KeyringStore;
+mod nitrokey_store;
+pub use nitrokey_store::NitrokeyStore;
+mod pass_store;
+pub use pass_store::{PassStore, Slot};
 pub mod util;
-pub mod vault;
+mod vault;
+pub use vault::PasswordVault;

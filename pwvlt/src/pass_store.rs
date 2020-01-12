@@ -1,4 +1,4 @@
-use crate::error::PwvltError;
+use crate::PwvltError;
 
 #[derive(Clone)]
 pub struct Slot {

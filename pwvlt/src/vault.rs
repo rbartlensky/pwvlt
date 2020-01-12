@@ -1,9 +1,6 @@
 use crate::config::{BackendName, Config};
-use crate::error::PwvltError;
-use crate::keyring_store::KeyringStore;
-use crate::nitrokey_store::NitrokeyStore;
-use crate::pass_store::{PassStore, Slot};
 use crate::util::{looping_prompt, random_password};
+use crate::{KeyringStore, NitrokeyStore, PassStore, PwvltError, Slot};
 
 use prettytable::{cell, row, Table};
 use rpassword::prompt_password_stdout;
@@ -23,10 +20,8 @@ impl PasswordVault {
             match backend {
                 BackendName::Nitrokey => {
                     let unlock_hook = || -> Result<String, PwvltError> {
-                        let pin =
-                            prompt_password_stdout("Nitrokey user pin:")?;
+                        let pin = prompt_password_stdout("Nitrokey user pin:")?;
                         Ok(pin)
-
                     };
                     match NitrokeyStore::new(Box::new(unlock_hook)) {
                         Ok(nk) => {
@@ -36,15 +31,13 @@ impl PasswordVault {
                         Err(e) => log::warn!("Failed to access Nitrokey: {}", e),
                     }
                 }
-                BackendName::Keyring => {
-                    match KeyringStore::new() {
-                        Ok(kr) => {
-                            log::info!("Keyring backend loaded successfully!");
-                            stores.push(Box::new(kr))
-                        }
-                        Err(e) => log::warn!("Failed to access Keyring: {}", e),
+                BackendName::Keyring => match KeyringStore::new() {
+                    Ok(kr) => {
+                        log::info!("Keyring backend loaded successfully!");
+                        stores.push(Box::new(kr))
                     }
-                }
+                    Err(e) => log::warn!("Failed to access Keyring: {}", e),
+                },
             }
         }
         PasswordVault { stores, config }
@@ -68,7 +61,12 @@ impl PasswordVault {
         Err(PwvltError::PasswordNotFound)
     }
 
-    pub fn set_password(&self, backend: usize, service: &str, username: &str) -> Result<(), PwvltError> {
+    pub fn set_password(
+        &self,
+        backend: usize,
+        service: &str,
+        username: &str,
+    ) -> Result<(), PwvltError> {
         let message = &format!(
             "New password for user {} (empty for randomly generated password):",
             username
