@@ -8,6 +8,7 @@ use rpassword::prompt_password_stdout;
 use std::io::{stdout, Write};
 
 #[derive(Default)]
+/// The PasswordVault deals with managing multiple password backends.
 pub struct PasswordVault {
     config: Config,
     stores: Vec<Box<dyn PassStore>>,
