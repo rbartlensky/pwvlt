@@ -10,7 +10,7 @@ pub enum PwvltError {
     Keyring(SsError),
     Io(std::io::Error),
     Nitrokey(CommandError),
-    /// A skip error is returned by `NitrokeyStore::new`, when the admin pin
+    /// A skip error is returned by `NitrokeyBackend::new`, when the admin pin
     /// is needed to unlock the Nitrokey.
     Skip,
     PasswordGeneration(String),

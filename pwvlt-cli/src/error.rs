@@ -6,6 +6,6 @@ pub enum Error {
     Io(std::io::Error),
     TomlDeserialize(toml::de::Error),
     TomlSerialize(toml::ser::Error),
-    PassStore(PwvltError),
+    Pwvlt(PwvltError),
     General(Box<dyn std::error::Error>)
 }

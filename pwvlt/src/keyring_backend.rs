@@ -1,4 +1,4 @@
-use crate::{PassStore, PwvltError, Slot};
+use crate::{Backend, PwvltError, Slot};
 
 use secret_service::{Collection, EncryptionType, SecretService};
 
@@ -8,23 +8,23 @@ use std::ptr::NonNull;
 
 const NOT_SET: &str = "not_set";
 
-pub struct KeyringStore<'a> {
+pub struct KeyringBackend<'a> {
     secret_service: NonNull<SecretService>,
     collection: RefCell<Option<Collection<'a>>>,
     slots: RefCell<Option<Vec<Slot>>>,
 }
 
-impl<'a> Drop for KeyringStore<'a> {
+impl<'a> Drop for KeyringBackend<'a> {
     fn drop(&mut self) {
         // make sure we release the secret_service field.
         unsafe { Box::from_raw(self.secret_service.as_ptr()) };
     }
 }
 
-impl<'a> KeyringStore<'a> {
-    pub fn new() -> Result<KeyringStore<'a>, PwvltError> {
+impl<'a> KeyringBackend<'a> {
+    pub fn new() -> Result<KeyringBackend<'a>, PwvltError> {
         let ss = Box::leak(Box::new(SecretService::new(EncryptionType::Dh)?));
-        Ok(KeyringStore {
+        Ok(KeyringBackend {
             secret_service: NonNull::from(ss),
             collection: RefCell::new(None),
             slots: RefCell::new(None),
@@ -94,7 +94,7 @@ impl<'a> KeyringStore<'a> {
     }
 }
 
-impl<'a> PassStore for KeyringStore<'a> {
+impl<'a> Backend for KeyringBackend<'a> {
     fn password(&self, service: &str, username: &str) -> Result<String, PwvltError> {
         self.unlock_collection()?;
         if let Some(collection) = &*self.collection.borrow() {
@@ -146,7 +146,7 @@ impl<'a> PassStore for KeyringStore<'a> {
         let msg = match err {
             PwvltError::Keyring(err) => err.to_string(),
             PwvltError::PasswordNotFound => "Password not found in Keyring".to_string(),
-            _ => unreachable!("A KeyringStore shouldn't generate a {} error.", err),
+            _ => unreachable!("A KeyringBackend shouldn't generate a {} error.", err),
         };
         log::warn!("{}", msg);
     }

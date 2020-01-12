@@ -1,6 +1,6 @@
 use crate::config::{BackendName, Config};
 use crate::util::{looping_prompt, random_password};
-use crate::{KeyringStore, NitrokeyStore, PassStore, PwvltError, Slot};
+use crate::{KeyringBackend, NitrokeyBackend, Backend, PwvltError, Slot};
 
 use prettytable::{cell, row, Table};
 use rpassword::prompt_password_stdout;
@@ -11,12 +11,12 @@ use std::io::{stdout, Write};
 /// The PasswordVault deals with managing multiple password backends.
 pub struct PasswordVault {
     config: Config,
-    stores: Vec<Box<dyn PassStore>>,
+    stores: Vec<Box<dyn Backend>>,
 }
 
 impl PasswordVault {
     pub fn new(config: Config) -> PasswordVault {
-        let mut stores: Vec<Box<dyn PassStore>> = Vec::with_capacity(2);
+        let mut stores: Vec<Box<dyn Backend>> = Vec::with_capacity(2);
         for backend in &config.general.backends {
             match backend {
                 BackendName::Nitrokey => {
@@ -24,7 +24,7 @@ impl PasswordVault {
                         let pin = prompt_password_stdout("Nitrokey user pin:")?;
                         Ok(pin)
                     };
-                    match NitrokeyStore::new(Box::new(unlock_hook)) {
+                    match NitrokeyBackend::new(Box::new(unlock_hook)) {
                         Ok(nk) => {
                             log::info!("Nitrokey backend loaded successfully!");
                             stores.push(Box::new(nk))
@@ -32,7 +32,7 @@ impl PasswordVault {
                         Err(e) => log::warn!("Failed to access Nitrokey: {}", e),
                     }
                 }
-                BackendName::Keyring => match KeyringStore::new() {
+                BackendName::Keyring => match KeyringBackend::new() {
                     Ok(kr) => {
                         log::info!("Keyring backend loaded successfully!");
                         stores.push(Box::new(kr))
@@ -44,7 +44,7 @@ impl PasswordVault {
         PasswordVault { stores, config }
     }
 
-    pub fn stores(&self) -> &Vec<Box<dyn PassStore>> {
+    pub fn stores(&self) -> &Vec<Box<dyn Backend>> {
         &self.stores
     }
 

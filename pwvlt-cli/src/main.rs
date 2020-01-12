@@ -94,7 +94,7 @@ fn handle_args(args: ArgMatches) -> Result<(), Error> {
     }
 }
 
-fn handle_store_errors(err: PwvltError) {
+fn handle_backend_errors(err: PwvltError) {
     match err {
         PwvltError::Keyring(e) => error!(
             "An error occurred while accessing the Keyring backend: {}",
@@ -119,7 +119,7 @@ fn main() {
     let matches = App::new("Password Vault")
         .version("1.0")
         .author("Robert B. <bartlensky.robert@gmail.com>")
-        .about("Stores passwords on the local keyring or on a Nitrokey.")
+        .about("Backends passwords on the local keyring or on a Nitrokey.")
         .arg(Arg::with_name("v").short("v").multiple(true))
         .arg(
             Arg::with_name("get")
@@ -165,7 +165,7 @@ fn main() {
             ),
             Error::TomlDeserialize(e) => error!("Failed to deserialize config file: {}", e),
             Error::TomlSerialize(e) => error!("Failed to serialize config file: {}", e),
-            Error::PassStore(e) => handle_store_errors(e),
+            Error::Pwvlt(e) => handle_backend_errors(e),
             Error::General(e) => error!("An internal error occured: {}", e),
         }
     }

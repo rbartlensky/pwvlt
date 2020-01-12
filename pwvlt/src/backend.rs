@@ -15,7 +15,7 @@ impl Default for Slot {
     }
 }
 
-pub trait PassStore {
+pub trait Backend {
     fn password(&self, service: &str, username: &str) -> Result<String, PwvltError>;
 
     fn set_password(

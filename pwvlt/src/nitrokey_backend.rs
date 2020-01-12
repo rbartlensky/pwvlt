@@ -1,4 +1,4 @@
-use crate::{PassStore, PwvltError, Slot};
+use crate::{Backend, PwvltError, Slot};
 
 use nitrokey::{
     connect, CommandError, Device, DeviceWrapper, GetPasswordSafe, PasswordSafe, SLOT_COUNT,
@@ -7,13 +7,13 @@ use nitrokey::{
 use std::cell::RefCell;
 use std::ptr::NonNull;
 
-pub struct NitrokeyStore<'a> {
+pub struct NitrokeyBackend<'a> {
     device: NonNull<DeviceWrapper>,
     pws: RefCell<Option<PasswordSafe<'a>>>,
     unlock_hook: Box<dyn Fn() -> Result<String, PwvltError>>,
 }
 
-impl<'a> Drop for NitrokeyStore<'a> {
+impl<'a> Drop for NitrokeyBackend<'a> {
     fn drop(&mut self) {
         let device = unsafe { Box::from_raw(self.device.as_ptr()) };
         if let Err(err) = device.lock() {
@@ -22,13 +22,13 @@ impl<'a> Drop for NitrokeyStore<'a> {
     }
 }
 
-impl<'a> NitrokeyStore<'a> {
+impl<'a> NitrokeyBackend<'a> {
     pub fn new(
         unlock_hook: Box<dyn Fn() -> Result<String, PwvltError>>,
-    ) -> Result<NitrokeyStore<'a>, PwvltError> {
+    ) -> Result<NitrokeyBackend<'a>, PwvltError> {
         let device = Box::new(connect()?);
         let device = Box::leak(device);
-        Ok(NitrokeyStore {
+        Ok(NitrokeyBackend {
             device: NonNull::new(device).unwrap(),
             pws: RefCell::new(None),
             unlock_hook,
@@ -60,7 +60,7 @@ impl<'a> NitrokeyStore<'a> {
     }
 }
 
-impl<'a> PassStore for NitrokeyStore<'a> {
+impl<'a> Backend for NitrokeyBackend<'a> {
     fn password(&self, service: &str, username: &str) -> Result<String, PwvltError> {
         self.unlock_safe()?;
         let pws_ref = &*self.pws.borrow();
@@ -106,7 +106,7 @@ impl<'a> PassStore for NitrokeyStore<'a> {
                 CommandError::WrongPassword => "User pin was incorrect.".into(),
                 err => format!("Nitrokey error: {}", err),
             },
-            err => unreachable!("A NitrokeyKeyStore shouldn't generate a {} error.", err),
+            err => unreachable!("A NitrokeyKeyBackend shouldn't generate a {} error.", err),
         };
         log::warn!("{}", message);
     }
