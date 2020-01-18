@@ -10,7 +10,7 @@ use std::ptr::NonNull;
 pub struct NitrokeyBackend<'a> {
     device: NonNull<DeviceWrapper>,
     pws: RefCell<Option<PasswordSafe<'a>>>,
-    unlock_hook: Box<dyn Fn() -> Result<String, PwvltError>>,
+    unlock_hook: fn() -> Result<String, PwvltError>,
 }
 
 impl<'a> Drop for NitrokeyBackend<'a> {
@@ -24,7 +24,7 @@ impl<'a> Drop for NitrokeyBackend<'a> {
 
 impl<'a> NitrokeyBackend<'a> {
     pub fn new(
-        unlock_hook: Box<dyn Fn() -> Result<String, PwvltError>>,
+        unlock_hook: fn() -> Result<String, PwvltError>,
     ) -> Result<NitrokeyBackend<'a>, PwvltError> {
         let device = Box::new(connect()?);
         let device = Box::leak(device);

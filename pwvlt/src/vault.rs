@@ -1,11 +1,6 @@
 use crate::config::{BackendName, Config};
-use crate::util::{looping_prompt, random_password};
-use crate::{KeyringBackend, NitrokeyBackend, Backend, PwvltError, Slot};
-
-use prettytable::{cell, row, Table};
-use rpassword::prompt_password_stdout;
-
-use std::io::{stdout, Write};
+use crate::util::random_password;
+use crate::{Backend, KeyringBackend, NitrokeyBackend, PwvltError};
 
 #[derive(Default)]
 /// The PasswordVault deals with managing multiple password backends.
@@ -15,16 +10,17 @@ pub struct PasswordVault {
 }
 
 impl PasswordVault {
-    pub fn new(config: Config) -> PasswordVault {
+    pub fn new(
+        config: Config,
+        nitrokey_unlock: Option<fn() -> Result<String, PwvltError>>,
+    ) -> PasswordVault {
         let mut stores: Vec<Box<dyn Backend>> = Vec::with_capacity(2);
         for backend in &config.general.backends {
             match backend {
                 BackendName::Nitrokey => {
-                    let unlock_hook = || -> Result<String, PwvltError> {
-                        let pin = prompt_password_stdout("Nitrokey user pin:")?;
-                        Ok(pin)
-                    };
-                    match NitrokeyBackend::new(Box::new(unlock_hook)) {
+                    let nitrokey_unlock = nitrokey_unlock
+                        .expect("Must provide an unlock hook if you use the Nitrokey backend.");
+                    match NitrokeyBackend::new(nitrokey_unlock) {
                         Ok(nk) => {
                             log::info!("Nitrokey backend loaded successfully!");
                             stores.push(Box::new(nk))
@@ -65,42 +61,18 @@ impl PasswordVault {
     pub fn set_password(
         &self,
         backend: usize,
+        slot: usize,
         service: &str,
         username: &str,
+        password: Option<&str>,
     ) -> Result<(), PwvltError> {
-        let message = &format!(
-            "New password for user {} (empty for randomly generated password):",
-            username
-        );
-        log::info!("Prompting for new password.");
-        let password = prompt_password_stdout(message)?;
-        let password = if password.is_empty() {
-            random_password(&self.config.password)?
-        } else {
-            password
-        };
-
         let backend = &self.stores[backend];
-        let slots = backend.slots()?;
-        self.print_slots(&slots)?;
-        let slot = looping_prompt("slot", slots.len() - 1);
-
-        backend.set_password(slot, service, username, &password)
-    }
-
-    fn print_slots(&self, slots: &[Slot]) -> Result<(), PwvltError> {
-        print!("Retrieving slots...\r");
-        stdout().flush().unwrap();
-        let mut table = Table::new();
-        table.add_row(row!["Slot", "Service", "Username"]);
-        slots
-            .iter()
-            .enumerate()
-            .for_each(|(slot, Slot { service, username })| {
-                table.add_row(row![slot.to_string(), service, username]);
-            });
-        table.printstd();
-        Ok(())
+        backend.set_password(
+            slot,
+            service,
+            username,
+            password.unwrap_or(&random_password(&self.config.password)?),
+        )
     }
 
     pub fn default(&self, service: &str) -> Option<&String> {
