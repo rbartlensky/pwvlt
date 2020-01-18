@@ -2,9 +2,9 @@ use clap::{App, Arg, ArgGroup, ArgMatches, Values};
 use clipboard::{ClipboardContext, ClipboardProvider};
 use log::error;
 use prettytable::{cell, row, Table};
+use rpassword::prompt_password_stdout;
 
-use pwvlt::util::looping_prompt;
-use pwvlt::{PwvltError, util::prompt_string, PasswordVault};
+use pwvlt::{PasswordVault, PwvltError};
 
 use std::io::{stdout, Write};
 use std::thread::sleep;
@@ -14,14 +14,12 @@ mod config;
 use config::write_config;
 mod error;
 use error::Error;
+mod util;
+use util::{looping_prompt, print_slots, prompt_string};
 
 const DEFAULT_TIMEOUT: u8 = 7;
 
-pub fn handle_get(
-    pv: PasswordVault,
-    service: &str,
-    username: &str,
-) -> Result<(), Error> {
+pub fn handle_get(pv: PasswordVault, service: &str, username: &str) -> Result<(), Error> {
     let password = pv.password(&service, &username)?;
     let mut ctx: ClipboardContext = ClipboardProvider::new()?;
     ctx.set_contents(password)?;
@@ -39,16 +37,21 @@ pub fn handle_set(
     pv: PasswordVault,
     service: &str,
     username: &str,
+    password: Option<&str>,
 ) -> Result<(), Error> {
     let backend_id = prompt_backend(&pv);
-    Ok(pv.set_password(backend_id, &service, &username)?)
+    let backend = &pv.backends()[backend_id];
+    let slots = backend.slots()?;
+    print_slots(&slots)?;
+    let slot = looping_prompt("slot", slots.len() - 1);
+    Ok(pv.set_password(backend_id, slot, service, username, password)?)
 }
 
 fn prompt_backend(pv: &PasswordVault) -> usize {
     println!("Available password backends:");
     let mut table = Table::new();
     table.add_row(row!["#", "Backend"]);
-    let backends = pv.stores();
+    let backends = pv.backends();
     for (i, backend) in backends.iter().enumerate() {
         table.add_row(row!(i.to_string(), backend.name()));
     }
@@ -56,11 +59,15 @@ fn prompt_backend(pv: &PasswordVault) -> usize {
     looping_prompt("backend", backends.len() - 1)
 }
 
+fn nitrokey_password() -> Result<String, PwvltError> {
+    Ok(prompt_password_stdout("Nitrokey user pin:")?)
+}
+
 fn create_vault_user_and_password<'a>(
     config: pwvlt::Config,
     values: &'a mut Values,
 ) -> (PasswordVault, &'a str, String) {
-    let pv = PasswordVault::new(config);
+    let pv = PasswordVault::new(config, Some(nitrokey_password));
     let service = values.next().unwrap();
     let username = match pv.default(&service) {
         Some(username) => {
@@ -83,7 +90,18 @@ fn handle_args(args: ArgMatches) -> Result<(), Error> {
         handle_get(pv, service, &username)
     } else if let Some(mut values) = args.values_of("set") {
         let (pv, service, username) = create_vault_user_and_password(config, &mut values);
-        handle_set(pv, service, &username)
+        let message = &format!(
+            "New password for user {} (empty for randomly generated password):",
+            username
+        );
+        log::info!("Prompting for new password.");
+        let password = prompt_password_stdout(message)?;
+        let password_opt: Option<&str> = if password.is_empty() {
+            None
+        } else {
+            Some(&password)
+        };
+        handle_set(pv, service, &username, password_opt)
     } else if let Some(mut values) = args.values_of("set-default") {
         let service = values.next().unwrap();
         let username = values.next().unwrap();
