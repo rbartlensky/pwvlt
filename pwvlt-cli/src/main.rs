@@ -119,7 +119,7 @@ fn main() {
     let matches = App::new("Password Vault")
         .version("1.0")
         .author("Robert B. <bartlensky.robert@gmail.com>")
-        .about("Backends passwords on the local keyring or on a Nitrokey.")
+        .about("Stores passwords on the local keyring or on a Nitrokey.")
         .arg(Arg::with_name("v").short("v").multiple(true))
         .arg(
             Arg::with_name("get")
