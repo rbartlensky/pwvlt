@@ -1,37 +1,32 @@
-use secret_service::SsError;
 use nitrokey::CommandError;
+use secret_service::SsError;
 
-use std::error::Error;
 use std::fmt;
-use std::io::Error as IoError;
 
 #[derive(derive_more::From, Debug)]
-pub enum PassStoreError {
+pub enum PwvltError {
+    /// Usually returned by the `password` method.
     PasswordNotFound,
     Keyring(SsError),
-    IoError(IoError),
-    GeneralError(Box<dyn Error>),
-    NitrokeyError(CommandError),
-    SkipError,
-    PasswordGenerationError(String),
-    LockedError,
+    Io(std::io::Error),
+    Nitrokey(CommandError),
+    /// A skip error is returned by `NitrokeyBackend::new`, when the admin pin
+    /// is needed to unlock the Nitrokey.
+    Skip,
+    PasswordGeneration(String),
     Utf8(std::string::FromUtf8Error),
 }
 
-impl fmt::Display for PassStoreError {
+impl fmt::Display for PwvltError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let message = match self {
-            PassStoreError::Utf8(err) => format!("{}", err),
-            PassStoreError::PasswordNotFound => "Password not found.".to_string(),
-            PassStoreError::Keyring(err) => format!("Keyring error: {}", err),
-            PassStoreError::IoError(err) => format!("I/O error: {}", err),
-            PassStoreError::GeneralError(err) => format!("Error: {}", err),
-            PassStoreError::NitrokeyError(err) => format!("Nitrokey error: {}", err),
-            PassStoreError::SkipError => "Skip error".to_string(),
-            PassStoreError::PasswordGenerationError(err) => {
-                format!("Error generating password: {}", err)
-            },
-            PassStoreError::LockedError => "Backend still locked".to_string(),
+            PwvltError::Utf8(err) => format!("{}", err),
+            PwvltError::PasswordNotFound => "Password not found.".to_string(),
+            PwvltError::Keyring(err) => format!("Keyring error: {}", err),
+            PwvltError::Io(err) => format!("I/O error: {}", err),
+            PwvltError::Nitrokey(err) => format!("Nitrokey error: {}", err),
+            PwvltError::Skip => "Skip error".to_string(),
+            PwvltError::PasswordGeneration(err) => format!("Error generating password: {}", err),
         };
         write!(f, "{}", message)
     }

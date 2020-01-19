@@ -1,62 +1,51 @@
-use crate::config::Config;
-use crate::error::PassStoreError;
-use crate::keyring_store::KeyringStore;
-use crate::nitrokey_store::NitrokeyStore;
-use crate::pass_store::{PassStore, Slot};
-use crate::util::{looping_prompt, random_password};
-
-use prettytable::{cell, row, Table};
-use rpassword::prompt_password_stdout;
-
-use std::io::{stdout, Write};
+use crate::config::{BackendName, Config};
+use crate::util::random_password;
+use crate::{Backend, KeyringBackend, NitrokeyBackend, PwvltError};
 
 #[derive(Default)]
+/// The PasswordVault deals with managing multiple password backends.
 pub struct PasswordVault {
     config: Config,
-    stores: Vec<Box<dyn PassStore>>,
+    backends: Vec<Box<dyn Backend>>,
 }
 
 impl PasswordVault {
-    pub fn new(config: Config) -> PasswordVault {
-        let mut stores: Vec<Box<dyn PassStore>> = Vec::with_capacity(2);
+    pub fn new(
+        config: Config,
+        nitrokey_unlock: Option<fn() -> Result<String, PwvltError>>,
+    ) -> PasswordVault {
+        let mut backends: Vec<Box<dyn Backend>> = Vec::with_capacity(2);
         for backend in &config.general.backends {
-            match backend.as_str() {
-                "nitrokey" => {
-                    let unlock_hook = || -> Result<String, PassStoreError> {
-                        let pin =
-                            prompt_password_stdout("Nitrokey user pin:")?;
-                        Ok(pin)
-
-                    };
-                    match NitrokeyStore::new(Box::new(unlock_hook)) {
+            match backend {
+                BackendName::Nitrokey => {
+                    let nitrokey_unlock = nitrokey_unlock
+                        .expect("Must provide an unlock hook if you use the Nitrokey backend.");
+                    match NitrokeyBackend::new(nitrokey_unlock) {
                         Ok(nk) => {
                             log::info!("Nitrokey backend loaded successfully!");
-                            stores.push(Box::new(nk))
+                            backends.push(Box::new(nk))
                         }
                         Err(e) => log::warn!("Failed to access Nitrokey: {}", e),
                     }
                 }
-                "keyring" => {
-                    match KeyringStore::new() {
-                        Ok(kr) => {
-                            log::info!("Keyring backend loaded successfully!");
-                            stores.push(Box::new(kr))
-                        }
-                        Err(e) => log::warn!("Failed to access Keyring: {}", e),
+                BackendName::Keyring => match KeyringBackend::new() {
+                    Ok(kr) => {
+                        log::info!("Keyring backend loaded successfully!");
+                        backends.push(Box::new(kr))
                     }
-                }
-                b => log::warn!("Skipping unknown backend '{}'", b),
+                    Err(e) => log::warn!("Failed to access Keyring: {}", e),
+                },
             }
         }
-        PasswordVault { stores, config }
+        PasswordVault { backends, config }
     }
 
-    pub fn stores(&self) -> &Vec<Box<dyn PassStore>> {
-        &self.stores
+    pub fn backends(&self) -> &Vec<Box<dyn Backend>> {
+        &self.backends
     }
 
-    pub fn password(&self, service: &str, username: &str) -> Result<String, PassStoreError> {
-        for store in &self.stores {
+    pub fn password(&self, service: &str, username: &str) -> Result<String, PwvltError> {
+        for store in &self.backends {
             let res = store.password(service, username);
             log::info!("Looking for password in {}.", store.name());
             if let Err(err) = res {
@@ -66,43 +55,24 @@ impl PasswordVault {
                 return res;
             }
         }
-        Err(PassStoreError::PasswordNotFound)
+        Err(PwvltError::PasswordNotFound)
     }
 
-    pub fn set_password(&self, backend: usize, service: &str, username: &str) -> Result<(), PassStoreError> {
-        let message = &format!(
-            "New password for user {} (empty for randomly generated password):",
-            username
-        );
-        log::info!("Prompting for new password.");
-        let password = prompt_password_stdout(message)?;
-        let password = if password.is_empty() {
-            random_password(&self.config.password)?
-        } else {
-            password
-        };
-
-        let backend = &self.stores[backend];
-        let slots = backend.slots()?;
-        self.print_slots(&slots)?;
-        let slot = looping_prompt("slot", slots.len() - 1);
-
-        backend.set_password(slot, service, username, &password)
-    }
-
-    fn print_slots(&self, slots: &[Slot]) -> Result<(), PassStoreError> {
-        print!("Retrieving slots...\r");
-        stdout().flush().unwrap();
-        let mut table = Table::new();
-        table.add_row(row!["Slot", "Service", "Username"]);
-        slots
-            .iter()
-            .enumerate()
-            .for_each(|(slot, Slot { service, username })| {
-                table.add_row(row![slot.to_string(), service, username]);
-            });
-        table.printstd();
-        Ok(())
+    pub fn set_password(
+        &self,
+        backend: usize,
+        slot: usize,
+        service: &str,
+        username: &str,
+        password: Option<&str>,
+    ) -> Result<(), PwvltError> {
+        let backend = &self.backends[backend];
+        backend.set_password(
+            slot,
+            service,
+            username,
+            password.unwrap_or(&random_password(&self.config.password)?),
+        )
     }
 
     pub fn default(&self, service: &str) -> Option<&String> {

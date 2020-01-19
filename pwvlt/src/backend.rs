@@ -1,4 +1,4 @@
-use crate::error::PassStoreError;
+use crate::PwvltError;
 
 #[derive(Clone)]
 pub struct Slot {
@@ -15,8 +15,8 @@ impl Default for Slot {
     }
 }
 
-pub trait PassStore {
-    fn password(&self, service: &str, username: &str) -> Result<String, PassStoreError>;
+pub trait Backend {
+    fn password(&self, service: &str, username: &str) -> Result<String, PwvltError>;
 
     fn set_password(
         &self,
@@ -24,11 +24,11 @@ pub trait PassStore {
         service: &str,
         username: &str,
         password: &str,
-    ) -> Result<(), PassStoreError>;
+    ) -> Result<(), PwvltError>;
 
-    fn log_error(&self, err: PassStoreError);
+    fn log_error(&self, err: PwvltError);
 
     fn name(&self) -> &'static str;
 
-    fn slots(&self) -> Result<Vec<Slot>, PassStoreError>;
+    fn slots(&self) -> Result<Vec<Slot>, PwvltError>;
 }
